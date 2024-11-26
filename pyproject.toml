@@ -38,4 +38,4 @@ dependencies = [
 Github = "https://github.com/AgeofIA/langtask"
 
 [tool.setuptools]
-packages = ["langtask"]
+packages = ["langtask", "langtask.core"]

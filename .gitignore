@@ -3,7 +3,11 @@ __pycache__/
 .vscode__/
 
 .env
+.pypirc
+
+dist/
 langtask.egg-info
+
 .pytest_cache/
 
 config/
