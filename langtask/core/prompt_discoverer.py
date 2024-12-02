@@ -217,8 +217,7 @@ def _validate_prompt_files(prompt_path: Path) -> dict[str, Path]:
             raise PromptValidationError(
                 message=f"Prompt {prompt_path.name} missing required files: {', '.join(missing_files)}. Each prompt needs config.yaml and instructions.md",
                 validation_type="required_files",
-                prompt_path=str(prompt_path),
-                constraints={"missing_files": missing_files}
+                prompt_path=str(prompt_path)
             )
         
         # Check optional files
@@ -232,19 +231,19 @@ def _validate_prompt_files(prompt_path: Path) -> dict[str, Path]:
             instructions_content = read_text_file(prompt_files['instructions.md'])
             input_params_used = check_input_params_in_instructions(instructions_content)
             
+            # Only log a warning if input parameters are used but no schema is present
             if input_params_used and 'input_schema.yaml' not in prompt_files:
-                logger.warning(
-                    "Input parameters used without schema",
+                logger.debug(
+                    "Template uses variables without input schema - validation will be skipped",
                     prompt_path=str(prompt_path),
-                    message="Input validation will be skipped"
+                    has_schema=False
                 )
                 
         except FileSystemError as e:
             raise PromptValidationError(
                 message=f"Cannot read instructions.md in {prompt_path.name}. Check file permissions and content.",
                 validation_type="instructions",
-                prompt_path=str(prompt_path),
-                constraints={"error": str(e)}
+                prompt_path=str(prompt_path)
             )
         
         return prompt_files
