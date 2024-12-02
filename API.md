@@ -64,7 +64,7 @@ Generates a response using a registered prompt with optional input parameters.
 def run(
     prompt_id: str,
     input_params: Dict[str, Any] | None = None
-) -> str | Dict[str, Any]
+) -> str | StructuredResponse
 ```
 
 **Parameters:**
@@ -73,7 +73,7 @@ def run(
 
 **Returns:**
 - `str`: Raw text response when no output schema is defined
-- `Dict[str, Any]`: Structured response when output schema is defined
+- `StructuredResponse`: Pydantic model instance with dot notation access when output schema is defined
 
 **Raises:**
 - `ExecutionError`: Processing or runtime failures
@@ -86,16 +86,18 @@ def run(
 
 Basic usage:
 ```python
-# Simple text generation
+# Simple text generation (no output schema)
 response = lt.run("greeting", {"name": "Alice", "style": "casual"})
 print(response)  # "Hey Alice! What's up?"
 
 # With structured output
 result = lt.run("analyze-sentiment", {"text": "I love this product!"})
-print(result)  # {"sentiment": "positive", "confidence": 0.95}
+print(result.sentiment)      # "positive"
+print(result.confidence)     # 0.95
+print(result.word_count)     # 2
 
-# Without parameters
-response = lt.run("get-time")
+# Convert to dictionary if needed
+data = result.model_dump()
 ```
 
 Error handling:
@@ -422,6 +424,8 @@ additional_context:
 
 #### Output Schema (`output_schema.yaml`)
 
+When an output schema is defined, responses are returned as Pydantic models with dot notation access:
+
 ```yaml
 # Required fields (default)
 message:
@@ -442,7 +446,27 @@ metadata:
       description: "Number of words in the message"
 ```
 
-Note: Fields are required by default. Always explicitly mark optional fields with `optional: true`. This helps prevent accidental omissions and makes the schema more maintainable.
+Accessing structured responses in code:
+
+```python
+response = lt.run("analyze-text", {"text": "Sample input"})
+
+# Direct field access with dot notation
+print(response.message)
+if hasattr(response, 'metadata'):
+    print(response.metadata.tone)
+    print(response.metadata.word_count)
+
+# Convert to dictionary if needed
+data = response.model_dump()
+```
+
+Key features of structured responses:
+- Type-safe field access
+- IDE autocompletion support
+- Immutable response objects
+- Automatic type conversion
+- Clear error messages for invalid access
 
 
 ## Creating Custom Prompts

@@ -12,13 +12,26 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, create_model, ValidationError
+from pydantic import BaseModel, Field, create_model, ValidationError
 
 from .exceptions import SchemaValidationError, FileSystemError
 from .file_reader import read_yaml_file
 from .logger import get_logger
 
 logger = get_logger(__name__)
+
+
+class StructuredResponse(BaseModel):
+    """Base class for all structured LLM responses."""
+    
+    class Config:
+        frozen = True  # Make instances immutable
+
+    def __getattribute__(self, name: str) -> Any:
+        value = super().__getattribute__(name)
+        if isinstance(value, Enum):
+            return value.value
+        return value
 
 
 # Standard type mappings for schema conversion
@@ -31,15 +44,12 @@ TYPE_MAPPING = {
     'object': dict[str, Any],
 }
 
+# Cache for created schema classes
+_schema_cache: dict[str, type[StructuredResponse]] = {}
 
-def load_yaml_schema(file_path: str | Path, request_id: str | None = None):
-    """Load and convert a YAML schema into a Pydantic model.
 
-    Provides schema validation with:
-    - Type checking and conversion
-    - Enum support
-    - Performance monitoring
-    - Comprehensive error handling
+def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> type[StructuredResponse] | None:
+    """Load and convert a YAML schema into a Pydantic response class.
 
     Args:
         file_path: Path to the YAML schema file. Can be either a string path
@@ -47,8 +57,9 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None):
         request_id: Optional identifier for tracing and logging purposes.
 
     Returns:
-        Optional[BaseModel]: Pydantic model class for data validation.
-        Returns None if schema is empty.
+        Either:
+            - Response class for validation
+            - None if schema is empty
 
     Raises:
         SchemaValidationError: When:
@@ -66,9 +77,10 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None):
 
     Example:
         >>> try:
-        ...     model = load_yaml_schema("user_schema.yaml")
-        ...     if model:
-        ...         user_data = model(name="John", age=30)
+        ...     schema_class = load_yaml_schema("sentiment_schema.yaml")
+        ...     if schema_class:
+        ...         response = schema_class(sentiment="positive", confidence=0.95)
+        ...         print(response.sentiment)
         ... except SchemaValidationError as e:
         ...     print(f"Schema error: {e.message}")
     """
@@ -76,6 +88,10 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None):
     path = Path(file_path)
     
     try:
+        # Check cache first
+        if str(path) in _schema_cache:
+            return _schema_cache[str(path)]
+            
         logger.info(
             "Loading YAML schema",
             file_path=str(path),
@@ -102,7 +118,10 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None):
 
         # Validate and create model
         _validate_schema(yaml_schema)
-        pydantic_model = _create_pydantic_model(yaml_schema)
+        response_class = _create_pydantic_model(yaml_schema, path.stem)
+        
+        # Cache the created class
+        _schema_cache[str(path)] = response_class
         
         duration_ms = (time.time() - start_time) * 1000
         logger.success(
@@ -113,7 +132,7 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None):
             request_id=request_id
         )
         
-        return pydantic_model
+        return response_class
         
     except FileSystemError:
         raise
@@ -129,7 +148,7 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None):
             request_id=request_id
         )
         raise SchemaValidationError(
-            message=f"Invalid model definition. Check field types and constraints: {e.errors()[0]['msg']}",
+            message=f"Invalid schema definition. Check field types and constraints: {e.errors()[0]['msg']}",
             schema_type="pydantic",
             constraints={"validation_errors": e.errors()}
         )
@@ -194,8 +213,9 @@ def _validate_schema(schema: dict[str, Any]) -> None:
                     constraints={"requirement": "non-empty list of values"}
                 )
 
-def _create_pydantic_model(schema: dict[str, Any]):
-    """Create Pydantic model from validated schema dictionary."""
+
+def _create_pydantic_model(schema: dict[str, Any], schema_name: str) -> type[StructuredResponse]:
+    """Create Pydantic response class from validated schema dictionary."""
     try:
         fields = {}
         for field_name, field_def in schema.items():
@@ -203,19 +223,26 @@ def _create_pydantic_model(schema: dict[str, Any]):
             field_type, field_info = _convert_to_pydantic_field(field_name.lower(), field_def)
             fields[field_name.lower()] = (field_type, field_info)
 
-        return create_model('DynamicModel', **fields)
+        # Create class with meaningful name
+        class_name = f"{schema_name.title().replace('_', '')}Response"
+        return create_model(
+            class_name,
+            __base__=StructuredResponse,
+            **fields
+        )
         
     except Exception as e:
         logger.error(
-            "Model creation failed",
+            "Response class creation failed",
             error=str(e),
             fields=list(schema.keys())
         )
         raise SchemaValidationError(
-            message="Failed to create Pydantic model",
+            message="Failed to create response class",
             schema_type="model",
             constraints={"error": str(e)}
         )
+
 
 def _convert_to_pydantic_field(
     field_name: str,
@@ -241,6 +268,7 @@ def _convert_to_pydantic_field(
             field=field_name,
             constraints={"definition": field_def}
         )
+
 
 def _get_field_type(field_name: str, field_def: dict[str, Any]) -> Any:
     """Determine Python type for schema field, including enums."""

@@ -23,6 +23,12 @@ from .core.config_loader import (
     get_global_config as _get_global_config,
     set_global_config as _set_global_config
 )
+from .core.exceptions import (
+    ConfigurationError,
+    FileSystemError,
+    PromptValidationError,
+    PromptValidationError as CorePromptValidationError
+)
 from .core.llm_processor import process_llm_request
 from .core.logger import get_logger, configure_logging, LogLevel
 from .core.prompt_registrar import (
@@ -31,12 +37,7 @@ from .core.prompt_registrar import (
     get_prompts_list,
     get_prompt_info
 )
-from .core.exceptions import (
-    ConfigurationError,
-    FileSystemError,
-    PromptValidationError,
-    PromptValidationError as CorePromptValidationError
-)
+from .core.schema_loader import StructuredResponse
 
 logger = get_logger(__name__)
 
@@ -80,7 +81,7 @@ def list_prompts() -> dict[str, dict[str, Any]]:
                 "prompt-id": {
                     "display_name": str,        # Optional display name
                     "description": str,         # Optional description
-                    "has_llm_config": bool,           # Whether prompt has LLM settings
+                    "has_llm_config": bool,     # Whether prompt has LLM settings
                     "has_input_schema": bool,   # Whether input schema exists
                     "has_output_schema": bool   # Whether output schema exists
                 }
@@ -110,22 +111,22 @@ def get_prompt(prompt_id: str) -> dict[str, Any]:
         prompt_id: ID of the prompt to retrieve information for
 
     Returns:
-        Dict[str, Any]: Dictionary containing prompt configuration:
-            - llm: List[Dict] - List of LLM configurations with:
+        Dictionary containing prompt configuration:
+            - llm: List of LLM configurations with:
                 - provider: str
                 - model: str
                 - temperature: float
                 - max_tokens: int
-            - schemas: Dict - Schema information:
-                - input: Dict
-                    - exists: bool - True if schema exists
-                    - content: Optional[Dict] - Schema content if exists
-                - output: Dict
-                    - exists: bool - True if schema exists
-                    - content: Optional[Dict] - Schema content if exists
-            - display_name: str - Optional display name (if present)
-            - description: str - Optional prompt description (if present)
-            - instructions: str - Content of instructions.md template
+            - schemas: Schema information:
+                - input:
+                    - exists: True if schema exists
+                    - content: Schema content if exists
+                - output:
+                    - exists: True if schema exists
+                    - content: Schema content if exists
+            - display_name: Optional display name (if present)
+            - description: Optional prompt description (if present)
+            - instructions: Content of instructions.md template
 
     Raises:
         PromptValidationError: When requested prompt doesn't exist or no directories registered
@@ -150,7 +151,7 @@ def get_prompt(prompt_id: str) -> dict[str, Any]:
         raise
 
 
-def run(prompt_id: str, input_params: dict[str, Any] | None = None) -> str | dict[str, Any]:
+def run(prompt_id: str, input_params: dict[str, Any] | None = None) -> str | StructuredResponse:
     """Generate a response using the specified prompt.
 
     Args:
@@ -158,9 +159,10 @@ def run(prompt_id: str, input_params: dict[str, Any] | None = None) -> str | dic
         input_params: Optional parameters required by the prompt template
 
     Returns:
-        Union[str, Dict]: Either:
-            - str: Raw text response when no schema is specified
-            - Dict: Structured response when output schema is defined
+        Either:
+            - Raw text response when no schema is defined
+            - Structured response object with fields accessible via
+              dot notation when an output schema is defined
 
     Raises:
         ExecutionError: For processing and runtime failures
@@ -170,9 +172,16 @@ def run(prompt_id: str, input_params: dict[str, Any] | None = None) -> str | dic
         PromptValidationError: When prompt not found or no directories registered
 
     Example:
+        >>> # Simple text response
         >>> response = run("translate-text", {"text": "Hello", "language": "Spanish"})
-        >>> print(response)
-        "Hola"
+        >>> print(response)  # Prints: "Hola"
+        
+        >>> # Structured response with schema
+        >>> response = run("analyze-sentiment", {"text": "Great product!"})
+        >>> print(response.sentiment)  # Access fields directly
+        positive
+        >>> print(response.confidence:.2f)  # Access numeric fields
+        0.95
     """
     try:
         return process_llm_request(prompt_id, input_params)

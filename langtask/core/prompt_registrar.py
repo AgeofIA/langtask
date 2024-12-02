@@ -100,9 +100,9 @@ def get_prompt_config(prompt_id: str) -> dict[str, Any] | None:
         prompt_id: Identifier of the prompt to retrieve
         
     Returns:
-        Optional[Dict]: Prompt configuration if found, containing:
-            - config: LLM and prompt settings
-            - files: Associated template and schema files
+        Either:
+            - Prompt configuration containing LLM settings and associated files
+            - None if prompt is not found
         
     Raises:
         PromptValidationError: When requested prompt doesn't exist
@@ -202,22 +202,22 @@ def get_prompt_info(prompt_id: str) -> dict[str, Any]:
         prompt_id: ID of the prompt to retrieve info for
         
     Returns:
-        Dict[str, Any]: Dictionary containing prompt configuration:
-            - llm: List[Dict] - List of LLM configurations with:
-                - provider: str
-                - model: str
-                - temperature: float
-                - max_tokens: int
-            - schemas: Dict - Schema information:
-                - input: Dict
-                    - exists: bool - True if schema exists
-                    - content: Optional[Dict] - Schema content if exists
-                - output: Dict
-                    - exists: bool - True if schema exists
-                    - content: Optional[Dict] - Schema content if exists
-            - display_name: str - Optional display name (if present)
-            - description: str - Optional prompt description (if present)
-            - instructions: str - Content of instructions.md template
+        Dictionary containing prompt configuration:
+            - llm: List of LLM configurations with:
+                - provider: Provider name
+                - model: Model identifier
+                - temperature: Temperature setting
+                - max_tokens: Maximum tokens limit
+            - schemas: Schema information:
+                - input:
+                    - exists: True if schema exists
+                    - content: Schema content if exists
+                - output:
+                    - exists: True if schema exists
+                    - content: Schema content if exists
+            - display_name: Optional display name (if present)
+            - description: Optional prompt description (if present)
+            - instructions: Content of instructions.md template
                 
     Raises:
         PromptValidationError: When requested prompt doesn't exist

@@ -30,18 +30,12 @@ def initialize_provider(
 ) -> ChatOpenAI | ChatAnthropic:
     """Initialize connection to the first available LLM provider.
 
-    Attempts connections in order with:
-    - Authentication validation
-    - Performance monitoring
-    - Automatic provider fallback
-    - Comprehensive error tracking
-
     Args:
         llm_configs: List of LLMConfig objects defining provider settings
         request_id: Optional identifier for tracing and logging
 
     Returns:
-        Union[ChatOpenAI, ChatAnthropic]: Initialized provider connection
+        Initialized provider connection to either OpenAI or Anthropic
 
     Raises:
         ConfigurationError: When configuration structure is invalid

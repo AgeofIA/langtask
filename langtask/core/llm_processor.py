@@ -10,7 +10,9 @@ Public Functions:
 
 import time
 import uuid
-from typing import Any
+from typing import Any, Type
+
+from langchain.prompts import ChatPromptTemplate
 
 from .exceptions import (
     DataValidationError,
@@ -25,11 +27,12 @@ from .llm_connector import initialize_provider
 from .logger import get_logger
 from .prompt_loader import load_prompt
 from .prompt_registrar import get_prompt_config
+from .schema_loader import StructuredResponse
 
 logger = get_logger(__name__)
 
 
-def process_llm_request(prompt_id: str, input_params: dict | None = None) -> str | dict:
+def process_llm_request(prompt_id: str, input_params: dict[str, Any] | None = None) -> str | StructuredResponse:
     """Process an LLM request with complete lifecycle handling.
 
     Manages request processing with:
@@ -37,16 +40,15 @@ def process_llm_request(prompt_id: str, input_params: dict | None = None) -> str
     - Input parameter validation
     - LLM interaction
     - Response processing
-    - Performance monitoring
 
     Args:
         prompt_id: ID of the registered prompt to use
         input_params: Optional parameters required by the prompt template
 
     Returns:
-        Union[str, Dict]: Either:
-            - Dict: Structured response when output_schema is defined
-            - str: Raw LLM response when no schema is specified
+        Either:
+            - Raw text response when no schema is specified
+            - Object with field access when schema is defined
 
     Raises:
         ExecutionError: For processing and runtime failures
@@ -62,14 +64,17 @@ def process_llm_request(prompt_id: str, input_params: dict | None = None) -> str
         - Unexpected failures (ERROR)
 
     Example:
+        >>> # Simple text response
         >>> result = process_llm_request("greeting-prompt", {"name": "Alice"})
         >>> print(result)
-        "Hello, Alice! How are you today?"
+        Hello, Alice! How are you today?
 
-        >>> # With schema validation
+        >>> # Structured response with schema
         >>> result = process_llm_request("analyze-sentiment", {"text": "Great day!"})
-        >>> print(result)
-        {"sentiment": "positive", "confidence": 0.95}
+        >>> print(result.sentiment)  # Access fields directly
+        positive
+        >>> print(result.confidence:.2f)  # Access numeric fields
+        0.95
     """
     request_id = str(uuid.uuid4())
     start_time = time.time()
@@ -144,11 +149,11 @@ def process_llm_request(prompt_id: str, input_params: dict | None = None) -> str
 
 def _process_llm_call(
     provider: Any,
-    prompt: Any,
-    params: dict,
-    output_schema: Any | None,
+    prompt: ChatPromptTemplate,
+    params: dict[str, Any],
+    output_schema: Type[StructuredResponse] | None,
     request_id: str
-) -> str | dict:
+) -> str | StructuredResponse:
     """Handle core LLM interaction with error handling and response processing."""
     start_time = time.time()
     provider_name = provider.__class__.__name__

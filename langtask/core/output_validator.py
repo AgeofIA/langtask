@@ -8,13 +8,15 @@ Public Functions:
     handle_structured_output: Process and validate structured LLM output
 """
 
-from typing import Any
-from pydantic import ValidationError
+from typing import Any, Type
+
 from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.outputs import ChatGeneration, Generation
+from pydantic import ValidationError
 
 from .exceptions import SchemaValidationError, ProviderAPIError
 from .logger import get_logger
+from .schema_loader import StructuredResponse
 
 logger = get_logger(__name__)
 
@@ -22,9 +24,9 @@ logger = get_logger(__name__)
 def handle_structured_output(
     provider: Any,
     messages: Any,
-    output_schema: Any,
+    output_schema: Type[StructuredResponse],
     request_id: str
-) -> dict:
+) -> StructuredResponse:
     """Process LLM response with structured output schema validation.
 
     Handles structured output processing with:
@@ -36,11 +38,11 @@ def handle_structured_output(
     Args:
         provider: LLM provider instance (ChatOpenAI or ChatAnthropic)
         messages: Formatted prompt messages to send to LLM
-        output_schema: Pydantic model class defining expected output structure
+        output_schema: Response schema class defining expected structure
         request_id: Request identifier for tracing
 
     Returns:
-        Dict: Validated structured response matching output schema
+        StructuredResponse: Validated response object with field access via dot notation
 
     Raises:
         SchemaValidationError: When:
@@ -56,15 +58,14 @@ def handle_structured_output(
         - Success metrics (DEBUG)
 
     Example:
-        >>> schema = OutputSchema
+        >>> schema = SentimentResponse
         >>> response = handle_structured_output(
         ...     provider=llm_provider,
         ...     messages=formatted_prompt,
         ...     output_schema=schema,
         ...     request_id="123"
         ... )
-        >>> print(response)
-        {"field1": "value1", "field2": "value2"}
+        >>> print(response.sentiment)  # Access fields with dot notation
     """
     try:
         structured_provider = provider.with_structured_output(output_schema)
@@ -85,7 +86,7 @@ def handle_structured_output(
             message=(
                 "LLM response format validation failed. The response was returned as a string "
                 "instead of structured data. Update the prompt to ensure the LLM returns properly "
-                "structured JSON output that matches your schema."
+                "structured output that matches your schema."
             ),
             schema_type="output",
             field=output_schema.__name__,
@@ -124,9 +125,9 @@ def handle_structured_output(
 
 def validate_llm_output(
     output_data: Any,
-    output_schema: Any,
+    output_schema: Type[StructuredResponse],
     request_id: str
-) -> dict:
+) -> StructuredResponse:
     """Validate LLM output against schema definition.
 
     Performs validation with:
@@ -137,11 +138,11 @@ def validate_llm_output(
 
     Args:
         output_data: Raw output from LLM to validate
-        output_schema: Pydantic model class defining expected structure
+        output_schema: Response schema class defining expected structure
         request_id: Request identifier for tracing
 
     Returns:
-        Dict: Validated and converted output data
+        StructuredResponse: Validated response object with field access via dot notation
 
     Raises:
         SchemaValidationError: When:
@@ -156,21 +157,19 @@ def validate_llm_output(
         - Success metrics (DEBUG)
 
     Example:
-        >>> schema = OutputSchema
-        >>> data = {"field1": "value1", "field2": 42}
+        >>> schema = SentimentResponse
+        >>> data = {"sentiment": "positive", "confidence": 0.95}
         >>> result = validate_llm_output(data, schema, "123")
-        >>> print(result)
-        {"field1": "value1", "field2": 42}
+        >>> print(result.sentiment)  # Access fields with dot notation
     """
     try:
         if isinstance(output_data, (ChatGeneration, Generation)):
             output_data = output_data.text
             
-        if hasattr(output_data, 'model_dump'):
-            return output_data.model_dump()
+        if isinstance(output_data, StructuredResponse):
+            return output_data
             
-        validated = output_schema(**output_data)
-        return validated.model_dump()
+        return output_schema(**output_data)
         
     except ValidationError as e:
         error_details = e.errors()[0] if e.errors() else {}
@@ -196,7 +195,7 @@ def validate_llm_output(
         if error_type == 'dict_type' and isinstance(input_value, str) and input_value.strip().startswith('{'):
             message = (
                 f"Schema validation failed at '{error_loc}': The LLM returned a string containing JSON "
-                f"instead of a structured output. Received: '{input_preview}'. "
+                f"instead of structured data. Received: '{input_preview}'. "
                 f"This usually means the LLM needs clearer instructions to return structured data. "
                 f"Try updating the prompt to explicitly request a structured response format."
             )

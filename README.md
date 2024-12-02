@@ -10,7 +10,7 @@ LangTask is a lightweight Python library for rapidly setting up and managing LLM
 
 ## Features
 
-- 🔍 **Schema Validation**: Type-safe input and output validation using Pydantic models
+- 🔍 **Schema Validation**: Type-safe input and output validation using Pydantic models with dot notation access
 - 🔄 **Provider Flexibility**: Support for multiple LLM providers (currently OpenAI and Anthropic)
 - 📝 **Prompt Management**: Simple directory-based prompt organization and discovery
 - ⚡ **Easy Integration**: Clean API for registering and running prompts
@@ -82,13 +82,20 @@ Generate a {{style}} greeting for {{name}}.
 # Register prompt directory
 lt.register("./prompts")
 
-# Generate text - variable names are case-insensitive
+# For simple text responses (no output schema)
 response = lt.run("greeting", {
     "NAME": "Alice",  # Will work
     "style": "casual" # Will also work
 })
-
 print(response)  # "Hey Alice! How's it going?"
+
+# For structured responses (with output schema)
+response = lt.run("analyze-sentiment", {
+    "text": "Great product!"
+})
+print(response.sentiment)      # "positive"
+print(response.confidence)     # 0.95
+print(response.word_count)     # 2
 ```
 
 ## Variable Naming
@@ -122,7 +129,7 @@ Each prompt requires:
 - `config.yaml`: LLM provider settings and prompt metadata
 - `instructions.md`: The actual prompt template with variable placeholders
 - `input_schema.yaml`: Schema defining expected input parameters
-- `output_schema.yaml`: (Optional) Schema for structured output validation
+- `output_schema.yaml`: Schema for structured output validation (required for dot notation access)
 
 ## Configuration
 
@@ -148,6 +155,44 @@ llm:
     temperature: 0.5
     max_tokens: 1000
 ```
+
+## Structured Responses
+
+When using output schemas, responses are returned as Pydantic models with dot notation access:
+
+```yaml
+# Define output schema (output_schema.yaml):
+sentiment:
+  type: string
+  description: "Detected sentiment"
+  enum: ["positive", "negative", "neutral"]
+confidence:
+  type: number
+  description: "Confidence score"
+word_count:
+  type: integer
+  description: "Number of words analyzed"
+```
+
+```python
+# Access in code:
+result = lt.run("analyze-sentiment", {"text": "Great product!"})
+
+# Access fields with dot notation
+print(result.sentiment)    # "positive"
+print(result.confidence)   # 0.95
+print(f"Analysis based on {result.word_count} words")
+
+# Convert to dictionary if needed
+data = result.model_dump()
+```
+
+Key benefits:
+- Type-safe field access
+- IDE autocompletion support
+- Immutable response objects
+- Automatic type conversion
+- Clear error messages for invalid access
 
 ## Logging
 
@@ -267,4 +312,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contributing
 
-While contributions are welcome, please note that this project is in pre-alpha stage with frequent breaking changes. If you'd like to contribute, please open an issue first to discuss what you would like to change.
+Contributions are welcome! Feel free to submit an issue or pull request.

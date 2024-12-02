@@ -11,7 +11,8 @@ Public Functions:
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Type
+from pydantic import BaseModel
 
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 
@@ -23,7 +24,7 @@ from .exceptions import (
 )
 from .file_reader import read_text_file
 from .logger import get_logger, DEFAULT_REQUEST_ID
-from .schema_loader import load_yaml_schema
+from .schema_loader import load_yaml_schema, StructuredResponse
 
 logger = get_logger(__name__)
 
@@ -32,7 +33,7 @@ def load_prompt(
     prompt_id: str,
     prompt_config: dict[str, Any],
     request_id: str | None = None
-) -> tuple[ChatPromptTemplate, object | None, object | None]:
+) -> tuple[ChatPromptTemplate, Type[StructuredResponse] | None, Type[BaseModel] | None]:
     """Load and configure a chat prompt template from files.
 
     Creates a template with:
@@ -47,10 +48,10 @@ def load_prompt(
         request_id: Optional identifier for tracing and logging
 
     Returns:
-        Tuple containing:
-        - ChatPromptTemplate: Configured prompt template
-        - object | None: Output schema model if defined
-        - object | None: Input schema model if defined
+        A tuple containing:
+        - Configured prompt template
+        - Response schema class if defined
+        - Input schema class if defined
 
     Raises:
         ExecutionError: When prompt processing fails
@@ -215,8 +216,8 @@ def check_input_params_in_instructions(instructions_content: str) -> bool:
 
 def _create_prompt_template(
     instructions_content: str,
-    output_schema: object | None,
-    input_schema: object | None,
+    output_schema: Type[StructuredResponse] | None,
+    input_schema: Type[BaseModel] | None,
     request_id: str = DEFAULT_REQUEST_ID
 ) -> ChatPromptTemplate:
     """Create chat template from instructions and schemas with variable handling."""
@@ -255,7 +256,9 @@ def _create_prompt_template(
         # Add format instructions for structured output
         if output_schema:
             template_content += (
-                f"\n\nReturn your response as a valid {output_schema.__name__} object."
+                f"\n\nFormat your response as a valid {output_schema.__name__} with "
+                f"the following fields: {', '.join(output_schema.model_fields.keys())}. "
+                f"Use proper types for each field."
             )
         
         template = ChatPromptTemplate(
