@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Structured responses now use Pydantic models with dot notation access instead of dictionaries
 - Response objects are now immutable to prevent accidental modifications
 - Updated documentation to reflect new structured response format
+- Improved handling of optional input schema files to properly support prompts without input validation
+
+### Fixed
+- Resolved an error that occurred when using prompts without input_schema.yaml files
+- Corrected logger parameter handling for optional schema warnings
 
 ### Added
 - Type hints for structured responses in IDE
