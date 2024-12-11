@@ -481,6 +481,24 @@ Accessing structured responses in code:
 ```python
 response = lt.run("analyze-text", {"text": "Sample input"})
 
+# Print full response with clean formatting
+print(response)
+# AnalyzeTextResponse(
+#     message='This is a detailed analysis...',
+#     status='complete',
+#     priority_level=2,
+#     confidence=0.8,
+#     is_final=true,
+#     metadata={
+#         'tone': 'formal',
+#         'word_count': 42,
+#         'timestamps': {
+#             'started': '2024-03-22T10:15:30',
+#             'completed': '2024-03-22T10:15:31'
+#         }
+#     }
+# )
+
 # Direct field access with dot notation
 print(response.message)
 print(response.status)          # Will be one of: "complete", "partial", "failed"
@@ -488,9 +506,12 @@ print(response.priority_level)  # Will be one of: 1, 2, 3, 4, 5
 print(response.confidence)      # Will be one of: 0.2, 0.4, 0.6, 0.8, 1.0
 print(response.is_final)        # true or false
 
+# Access nested objects with dot notation
 if hasattr(response, 'metadata'):
     print(response.metadata.tone)
     print(response.metadata.word_count)
+    print(response.metadata.timestamps.started)
+    print(response.metadata.timestamps.completed)
 
 # Convert to dictionary if needed
 data = response.model_dump()
@@ -502,6 +523,9 @@ Key features of structured responses:
 - Immutable response objects
 - Automatic type conversion
 - Clear error messages for invalid access
+- Human-readable string representation
+- Properly indented nested objects
+- Full data visibility without truncation
 
 ### Creating Custom Prompts
 

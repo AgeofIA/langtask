@@ -1,7 +1,10 @@
 """YAML Schema Loader
 
 Converts YAML schema definitions to Pydantic models for data validation.
-Supports JSON Schema types and literals with comprehensive error reporting.
+Supports JSON Schema types, literals, and nested objects.
+
+Fields are required by default unless explicitly marked with required: false.
+Nested objects are supported up to 4 levels deep.
 
 Public Functions:
     load_yaml_schema: Loads and converts YAML schema to Pydantic model
@@ -9,7 +12,7 @@ Public Functions:
 
 import time
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Type
 
 from pydantic import BaseModel, Field, create_model, ValidationError
 
@@ -23,8 +26,55 @@ logger = get_logger(__name__)
 class StructuredResponse(BaseModel):
     """Base class for all structured LLM responses."""
     
-    class Config:
-        frozen = True  # Make instances immutable
+    model_config = {
+        "frozen": True,  # Make instances immutable
+        "str_strip_whitespace": True,  # Clean up string outputs
+        "validate_default": True  # Ensure defaults match field types
+    }
+    
+    def __str__(self) -> str:
+        """Create a readable string representation of the response."""
+        return self._format_value(self.model_dump(), indent_level=0, is_root=True)
+    
+    def _format_value(self, value: Any, indent_level: int, is_root: bool = False) -> str:
+        """Recursively format values with proper indentation."""
+        indent = "    " * indent_level
+        next_indent = "    " * (indent_level + 1)
+        
+        if isinstance(value, dict):
+            if not value:
+                return "{}"
+                
+            items = []
+            for k, v in value.items():
+                formatted_value = self._format_value(v, indent_level + 1)
+                items.append(f"{next_indent}{k}={formatted_value}")
+                
+            dict_content = ',\n'.join(items)
+            if is_root:
+                class_name = self.__class__.__name__
+                return f"{class_name}(\n{dict_content}\n{indent})"
+            return "{\n" + dict_content + f"\n{indent}}}"
+            
+        elif isinstance(value, list):
+            if not value:
+                return "[]"
+                
+            items = []
+            for item in value:
+                formatted_item = self._format_value(item, indent_level + 1)
+                items.append(f"{next_indent}{formatted_item}")
+                
+            return "[\n" + ',\n'.join(items) + f"\n{indent}]"
+            
+        elif isinstance(value, (str, int, float, bool)):
+            return repr(value)
+            
+        return str(value)
+    
+    def __repr__(self) -> str:
+        """Use the same format for repr as str for consistency."""
+        return self.__str__()
 
 
 # Standard type mappings for schema conversion
@@ -33,18 +83,21 @@ TYPE_MAPPING = {
     'integer': int,
     'number': float,
     'boolean': bool,
-    'array': list[Any],
-    'object': dict[str, Any],
+    'array': list[Any],  # TODO: Add support for typed arrays in future
+    'object': dict[str, Any],  # Placeholder - objects use nested models
 }
 
 # Types that support options lists
 OPTION_COMPATIBLE_TYPES = {'string', 'integer', 'number'}
 
+# Maximum allowed nesting depth for object types
+MAX_NESTING_DEPTH = 4
+
 # Cache for created schema classes
-_schema_cache: dict[str, type[StructuredResponse]] = {}
+_schema_cache: dict[str, Type[StructuredResponse]] = {}
 
 
-def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> type[StructuredResponse] | None:
+def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Type[StructuredResponse] | None:
     """Load and convert a YAML schema into a Pydantic response class.
 
     Args:
@@ -63,20 +116,28 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> ty
             - Field definitions are incorrect
             - Type conversion fails
             - Option values are invalid
+            - Nested object depth exceeds MAX_NESTING_DEPTH
         FileSystemError: When schema file cannot be accessed
 
-    Logs:
-        - Schema loading start (INFO)
-        - Empty schema detection (INFO)
-        - Successful conversion with metrics (SUCCESS)
-        - Validation and conversion errors (ERROR)
+    Notes:
+        - All fields are required by default unless marked with required: false
+        - Nested objects must define their fields in a 'properties' key
+        - Maximum nesting depth is 4 levels
+        - Field names are converted to lowercase internally
+        - Options are only supported for string, integer, and number types
 
     Example:
         >>> try:
-        ...     schema_class = load_yaml_schema("sentiment_schema.yaml")
+        ...     schema_class = load_yaml_schema("schema.yaml")
         ...     if schema_class:
-        ...         response = schema_class(sentiment="positive", confidence=0.95)
-        ...         print(response.sentiment)
+        ...         # Fields are required by default
+        ...         response = schema_class(
+        ...             required_field="value",
+        ...             metadata={  # Nested object
+        ...                 "required_nested": "value",
+        ...                 "optional_nested": "value"  # If marked required: false
+        ...             }
+        ...         )
         ... except SchemaValidationError as e:
         ...     print(f"Schema error: {e.message}")
     """
@@ -164,24 +225,26 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> ty
         )
 
 
-def _validate_schema(schema: dict[str, Any]) -> None:
-    """Validate schema structure and field definitions."""
+def _validate_schema(schema: dict[str, Any], field_path: str = "", depth: int = 0) -> None:
+    """Validate schema structure and field definitions recursively."""
     for field_name, field_def in schema.items():
+        current_path = f"{field_path}.{field_name}" if field_path else field_name
+        
         # Validate field definition structure
         if not isinstance(field_def, dict):
             raise SchemaValidationError(
-                message=f"Field '{field_name}' must be a dictionary defining type and constraints.",
+                message=f"Field '{current_path}' must be a dictionary defining type and constraints.",
                 schema_type="field",
-                field=field_name,
+                field=current_path,
                 constraints={"expected_type": "object"}
             )
             
         # Validate required type field
         if 'type' not in field_def:
             raise SchemaValidationError(
-                message=f"Field '{field_name}' missing 'type'. Specify one of: {', '.join(TYPE_MAPPING.keys())}",
+                message=f"Field '{current_path}' missing 'type'. Specify one of: {', '.join(TYPE_MAPPING.keys())}",
                 schema_type="field",
-                field=field_name,
+                field=current_path,
                 constraints={"required_attribute": "type"}
             )
             
@@ -189,24 +252,44 @@ def _validate_schema(schema: dict[str, Any]) -> None:
         field_type = field_def.get('type')
         if field_type not in TYPE_MAPPING:
             raise SchemaValidationError(
-                message=f"Field '{field_name}' has invalid type: {field_type}",
+                message=f"Field '{current_path}' has invalid type: {field_type}",
                 schema_type="type",
-                field=field_name,
+                field=current_path,
                 constraints={
                     "invalid_type": field_type,
                     "allowed_types": list(TYPE_MAPPING.keys())
                 }
             )
+        
+        # Handle nested object validation
+        if field_type == 'object':
+            if depth >= MAX_NESTING_DEPTH:
+                raise SchemaValidationError(
+                    message=f"Field '{current_path}' exceeds maximum nesting depth of {MAX_NESTING_DEPTH}",
+                    schema_type="nesting",
+                    field=current_path,
+                    constraints={"max_depth": MAX_NESTING_DEPTH}
+                )
+                
+            if 'properties' not in field_def:
+                raise SchemaValidationError(
+                    message=f"Object field '{current_path}' must define 'properties'",
+                    schema_type="object",
+                    field=current_path,
+                    constraints={"required_attribute": "properties"}
+                )
+                
+            _validate_schema(field_def['properties'], current_path, depth + 1)
             
         # Validate options if present
         if 'options' in field_def:
             # First validate that the field type supports options
             if field_type not in OPTION_COMPATIBLE_TYPES:
                 raise SchemaValidationError(
-                    message=f"Field '{field_name}' has type '{field_type}' which does not support options. Options are only "
+                    message=f"Field '{current_path}' has type '{field_type}' which does not support options. Options are only "
                            f"supported for: {', '.join(OPTION_COMPATIBLE_TYPES)}",
                     schema_type="options",
-                    field=field_name,
+                    field=current_path,
                     constraints={"allowed_types": list(OPTION_COMPATIBLE_TYPES)}
                 )
             
@@ -214,9 +297,9 @@ def _validate_schema(schema: dict[str, Any]) -> None:
             option_values = field_def['options']
             if not isinstance(option_values, list) or not option_values:
                 raise SchemaValidationError(
-                    message=f"Field '{field_name}' has invalid options definition. Must be a non-empty list.",
+                    message=f"Field '{current_path}' has invalid options definition. Must be a non-empty list.",
                     schema_type="options",
-                    field=field_name,
+                    field=current_path,
                     constraints={"requirement": "non-empty list of values"}
                 )
             
@@ -224,14 +307,14 @@ def _validate_schema(schema: dict[str, Any]) -> None:
             expected_type = TYPE_MAPPING[field_type]
             if not all(isinstance(v, expected_type) for v in option_values):
                 raise SchemaValidationError(
-                    message=f"Field '{field_name}' options must all be of type {field_type}",
+                    message=f"Field '{current_path}' options must all be of type {field_type}",
                     schema_type="options",
-                    field=field_name,
+                    field=current_path,
                     constraints={"expected_type": field_type}
                 )
 
 
-def _create_pydantic_model(schema: dict[str, Any], schema_name: str) -> type[StructuredResponse]:
+def _create_pydantic_model(schema: dict[str, Any], schema_name: str) -> Type[StructuredResponse]:
     """Create Pydantic response class from validated schema dictionary."""
     try:
         fields = {}
@@ -263,55 +346,85 @@ def _create_pydantic_model(schema: dict[str, Any], schema_name: str) -> type[Str
 
 def _convert_to_pydantic_field(
     field_name: str,
-    field_def: dict[str, Any]
+    field_def: dict[str, Any],
+    parent_path: str = ""
 ) -> tuple[Any, Field]:
     """Convert schema field definition to Pydantic field tuple."""
     try:
-        field_type = _get_field_type(field_name, field_def)
+        field_type = _get_field_type(field_name, field_def, parent_path)
         
-        # Create field with metadata
-        field_info = Field(
-            default=field_def.get('default'),
-            description=field_def.get('description', ''),
-            title=field_def.get('title')
-        )
+        # Fields are required by default in Pydantic
+        # Only set default if field is optional or has explicit default
+        field_kwargs = {
+            "description": field_def.get('description', ''),
+            "title": field_def.get('title')
+        }
         
-        return field_type, field_info
+        if not field_def.get('required', True):
+            field_kwargs["default"] = field_def.get('default', None)
+        elif 'default' in field_def:
+            field_kwargs["default"] = field_def['default']
+            
+        return field_type, Field(**field_kwargs)
         
     except Exception as e:
+        current_path = f"{parent_path}.{field_name}" if parent_path else field_name
         raise SchemaValidationError(
-            message=f"Failed to convert field '{field_name}': {str(e)}",
+            message=f"Failed to convert field '{current_path}': {str(e)}",
             schema_type="field",
-            field=field_name,
+            field=current_path,
             constraints={"definition": field_def}
         )
 
 
-def _get_field_type(field_name: str, field_def: dict[str, Any]) -> Any:
-    """Determine Python type for schema field, including literals."""
+def _get_field_type(field_name: str, field_def: dict[str, Any], parent_path: str = "") -> Any:
+    """Determine Python type for schema field, including literals and nested objects."""
+    current_path = f"{parent_path}.{field_name}" if parent_path else field_name
+    
     # Handle fields with options using Literal types
     if 'options' in field_def:
         try:
             option_values = tuple(field_def['options'])  # Convert to tuple for Literal
-            # Create Literal type with the option values
             return Literal[option_values]  # type: ignore
         except Exception as e:
             raise SchemaValidationError(
-                message=f"Invalid options for '{field_name}'. Values must be hashable.",
+                message=f"Invalid options for '{current_path}'. Values must be hashable.",
                 schema_type="options",
-                field=field_name,
+                field=current_path,
                 constraints={"values": field_def['options']}
             )
     
-    # Handle standard types
     schema_type = field_def.get('type')
+    
+    # Handle nested objects
+    if schema_type == 'object' and 'properties' in field_def:
+        # Create nested fields
+        nested_fields = {}
+        for prop_name, prop_def in field_def['properties'].items():
+            nested_type, nested_info = _convert_to_pydantic_field(
+                prop_name.lower(),
+                prop_def,
+                current_path
+            )
+            nested_fields[prop_name.lower()] = (nested_type, nested_info)
+        
+        # Create nested model with descriptive name and proper inheritance
+        model_name = f"{current_path.title().replace('.', '_')}Model"
+        return create_model(
+            model_name,
+            __base__=BaseModel,
+            **nested_fields,
+            __module__=StructuredResponse.__module__
+        )
+    
+    # Handle standard types
     if schema_type in TYPE_MAPPING:
         return TYPE_MAPPING[schema_type]
     
     # Fallback for unknown types    
     logger.warning(
         "Unknown schema type",
-        field=field_name,
+        field=current_path,
         type=schema_type
     )
     return Any

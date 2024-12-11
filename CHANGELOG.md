@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - Unreleased
 
 ### Changed
-- Structured responses now use Pydantic models with dot notation access instead of dictionaries
-- Response objects are now immutable to prevent accidental modifications
+- Switched response format from dictionaries to immutable Pydantic models
 - Changed `optional: true` to `required: false` in schema definitions for better alignment with industry standards
 - Improved handling of optional input schema files to properly support prompts without input validation
 - Replaced `enum` with `options` in schema definitions for more intuitive field restrictions
@@ -22,10 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected logger parameter handling for optional schema warnings
 
 ### Added
-- Type hints for structured responses in IDE
-- Automatic field type conversion in responses
-- Clear error messages for invalid field access
+- Dot notation access for response fields (e.g., `response.field` instead of `response["field"]`)
+- Response immutability to prevent accidental modifications
+- Human-readable string representation when printing full response objects
 - `model_dump()` method for converting responses to dictionaries
+- Support for nested objects in schemas (up to 4 levels deep)
 - Support for options on string, integer, and number fields with strict type validation
 
 
