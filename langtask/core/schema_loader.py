@@ -54,7 +54,7 @@ class StructuredResponse(BaseModel):
             if is_root:
                 class_name = self.__class__.__name__
                 return f"{class_name}(\n{dict_content}\n{indent})"
-            return "{\n" + dict_content + f"\n{indent}}}"
+            return f"{{\n{dict_content}\n{indent}}}"
             
         elif isinstance(value, list):
             if not value:
