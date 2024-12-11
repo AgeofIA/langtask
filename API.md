@@ -506,12 +506,24 @@ print(response.priority_level)  # Will be one of: 1, 2, 3, 4, 5
 print(response.confidence)      # Will be one of: 0.2, 0.4, 0.6, 0.8, 1.0
 print(response.is_final)        # true or false
 
-# Access nested objects with dot notation
+# Nested field access (for required fields)
+print(response.analysis.score)           # Two levels deep
+print(response.analysis.details.tone)    # Three levels deep
+print(response.analysis.details.metrics.accuracy)  # Four levels deep
+
+# Optional field access
+# There are two ways to handle optional fields:
+
+# 1. Using try/except
+try:
+    print(response.metadata.tone)  # Will raise AttributeError if metadata or tone is missing
+except AttributeError:
+    print("Could not access response.metadata.tone")
+
+# 2. Using hasattr check
 if hasattr(response, 'metadata'):
     print(response.metadata.tone)
     print(response.metadata.word_count)
-    print(response.metadata.timestamps.started)
-    print(response.metadata.timestamps.completed)
 
 # Convert to dictionary if needed
 data = response.model_dump()
@@ -521,11 +533,10 @@ Key features of structured responses:
 - Type-safe field access
 - IDE autocompletion support
 - Immutable response objects
+- Nested objects up to 4 levels deep
 - Automatic type conversion
-- Clear error messages for invalid access
-- Human-readable string representation
-- Properly indented nested objects
-- Full data visibility without truncation
+- Clear AttributeError messages for missing fields
+- Human-readable string representation of response class
 
 ### Creating Custom Prompts
 

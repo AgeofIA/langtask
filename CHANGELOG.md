@@ -16,10 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched from Python Enums to Pydantic Literals for better type safety and simpler value handling
 - Limited options to string, integer, and number types only
 
-### Fixed
-- Resolved an error that occurred when using prompts without input_schema.yaml files
-- Corrected logger parameter handling for optional schema warnings
-
 ### Added
 - Dot notation access for response fields (e.g., `response.field` instead of `response["field"]`)
 - Response immutability to prevent accidental modifications
@@ -27,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `model_dump()` method for converting responses to dictionaries
 - Support for nested objects in schemas (up to 4 levels deep)
 - Support for options on string, integer, and number fields with strict type validation
+
+### Fixed
+- Resolved an error that occurred when using prompts without input_schema.yaml files
+- Corrected logger parameter handling for optional schema warnings
 
 
 ## [0.1.0] - 2024-11-25
