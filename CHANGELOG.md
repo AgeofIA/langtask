@@ -11,8 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Structured responses now use Pydantic models with dot notation access instead of dictionaries
 - Response objects are now immutable to prevent accidental modifications
-- Updated documentation to reflect new structured response format
+- Changed `optional: true` to `required: false` in schema definitions for better alignment with industry standards
 - Improved handling of optional input schema files to properly support prompts without input validation
+- Replaced `enum` with `options` in schema definitions for more intuitive field restrictions
+- Switched from Python Enums to Pydantic Literals for better type safety and simpler value handling
+- Limited options to string, integer, and number types only
 
 ### Fixed
 - Resolved an error that occurred when using prompts without input_schema.yaml files
@@ -23,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic field type conversion in responses
 - Clear error messages for invalid field access
 - `model_dump()` method for converting responses to dictionaries
+- Support for options on string, integer, and number fields with strict type validation
 
 
 ## [0.1.0] - 2024-11-25
@@ -78,3 +82,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - loguru >= 0.7.0
 
 [0.1.0]: https://github.com/AgeofIA/langtask/releases/tag/v0.1.0
+
+
+
+
+
+Yes, we should update it to reflect the recent changes. The changelog currently has a few inaccuracies, particularly around which types support options. Here's how we should update the Changed and Added sections:
+
+### Changed
+- Structured responses now use Pydantic models with dot notation access instead of dictionaries
+- Response objects are now immutable to prevent accidental modifications
+- Changed `optional: true` to `required: false` in schema definitions for better alignment with industry standards
+- Improved handling of optional input schema files to properly support prompts without input validation
+- Replaced `enum` with `options` in schema definitions for more intuitive field restrictions
+- Switched from Python Enums to Pydantic Literals for better type safety and simpler value handling
+- Limited options to string, integer, and number types only for better semantic clarity
+
+### Added
+- Type hints for structured responses in IDE
+- Automatic field type conversion in responses
+- Clear error messages for invalid field access
+- `model_dump()` method for converting responses to dictionaries
+- Support for options on string, integer, and number fields with strict type validation
+
+Key changes:
+1. Removed boolean from supported options types in the Added section
+2. Added an explicit Changed entry about limiting options to specific types
+3. Made the options support entry more specific about which types are supported
+
+Would you like me to make any other adjustments to the changelog?

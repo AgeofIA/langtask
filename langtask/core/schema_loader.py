@@ -1,16 +1,15 @@
 """YAML Schema Loader
 
 Converts YAML schema definitions to Pydantic models for data validation.
-Supports JSON Schema types and enums with comprehensive error reporting.
+Supports JSON Schema types and literals with comprehensive error reporting.
 
 Public Functions:
     load_yaml_schema: Loads and converts YAML schema to Pydantic model
 """
 
 import time
-from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, create_model, ValidationError
 
@@ -27,12 +26,6 @@ class StructuredResponse(BaseModel):
     class Config:
         frozen = True  # Make instances immutable
 
-    def __getattribute__(self, name: str) -> Any:
-        value = super().__getattribute__(name)
-        if isinstance(value, Enum):
-            return value.value
-        return value
-
 
 # Standard type mappings for schema conversion
 TYPE_MAPPING = {
@@ -43,6 +36,9 @@ TYPE_MAPPING = {
     'array': list[Any],
     'object': dict[str, Any],
 }
+
+# Types that support options lists
+OPTION_COMPATIBLE_TYPES = {'string', 'integer', 'number'}
 
 # Cache for created schema classes
 _schema_cache: dict[str, type[StructuredResponse]] = {}
@@ -66,7 +62,7 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> ty
             - Schema structure is invalid
             - Field definitions are incorrect
             - Type conversion fails
-            - Enum values are invalid
+            - Option values are invalid
         FileSystemError: When schema file cannot be accessed
 
     Logs:
@@ -191,7 +187,7 @@ def _validate_schema(schema: dict[str, Any]) -> None:
             
         # Validate type value
         field_type = field_def.get('type')
-        if field_type not in TYPE_MAPPING and 'enum' not in field_def:
+        if field_type not in TYPE_MAPPING:
             raise SchemaValidationError(
                 message=f"Field '{field_name}' has invalid type: {field_type}",
                 schema_type="type",
@@ -202,15 +198,36 @@ def _validate_schema(schema: dict[str, Any]) -> None:
                 }
             )
             
-        # Validate enum values if present
-        if 'enum' in field_def:
-            enum_values = field_def['enum']
-            if not isinstance(enum_values, list) or not enum_values:
+        # Validate options if present
+        if 'options' in field_def:
+            # First validate that the field type supports options
+            if field_type not in OPTION_COMPATIBLE_TYPES:
                 raise SchemaValidationError(
-                    message=f"Field '{field_name}' has invalid enum definition",
-                    schema_type="enum",
+                    message=f"Field '{field_name}' has type '{field_type}' which does not support options. Options are only "
+                           f"supported for: {', '.join(OPTION_COMPATIBLE_TYPES)}",
+                    schema_type="options",
+                    field=field_name,
+                    constraints={"allowed_types": list(OPTION_COMPATIBLE_TYPES)}
+                )
+            
+            # Then validate the options list structure
+            option_values = field_def['options']
+            if not isinstance(option_values, list) or not option_values:
+                raise SchemaValidationError(
+                    message=f"Field '{field_name}' has invalid options definition. Must be a non-empty list.",
+                    schema_type="options",
                     field=field_name,
                     constraints={"requirement": "non-empty list of values"}
+                )
+            
+            # Validate option value types match the field type
+            expected_type = TYPE_MAPPING[field_type]
+            if not all(isinstance(v, expected_type) for v in option_values):
+                raise SchemaValidationError(
+                    message=f"Field '{field_name}' options must all be of type {field_type}",
+                    schema_type="options",
+                    field=field_name,
+                    constraints={"expected_type": field_type}
                 )
 
 
@@ -271,20 +288,19 @@ def _convert_to_pydantic_field(
 
 
 def _get_field_type(field_name: str, field_def: dict[str, Any]) -> Any:
-    """Determine Python type for schema field, including enums."""
-    # Handle enum fields
-    if 'enum' in field_def:
+    """Determine Python type for schema field, including literals."""
+    # Handle fields with options using Literal types
+    if 'options' in field_def:
         try:
-            return Enum(
-                f"{field_name.capitalize()}Enum",
-                {v: v for v in field_def['enum']}
-            )
+            option_values = tuple(field_def['options'])  # Convert to tuple for Literal
+            # Create Literal type with the option values
+            return Literal[option_values]  # type: ignore
         except Exception as e:
             raise SchemaValidationError(
-                message=f"Invalid enum for '{field_name}'. Values must be unique and hashable.",
-                schema_type="enum",
+                message=f"Invalid options for '{field_name}'. Values must be hashable.",
+                schema_type="options",
                 field=field_name,
-                constraints={"values": field_def['enum']}
+                constraints={"values": field_def['options']}
             )
     
     # Handle standard types

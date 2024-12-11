@@ -63,8 +63,9 @@ name:
   description: "Name of the person to greet"
 style:
   type: string
-  description: "Style of greeting (formal/casual)"
-  enum: ["formal", "casual"]
+  description: "Style of greeting"
+  options: ["formal", "casual"]
+  required: false  # This field is optional
 ```
 
 4. Create prompt instructions:
@@ -105,6 +106,14 @@ LangTask handles variable names case-insensitively throughout the system:
 - Input parameters can use any case (e.g., `"NAME"`, `"name"`, `"Name"`)
 - Schema definitions use lowercase internally
 - All comparisons and validations are case-insensitive
+
+Type names in schemas should use JSON Schema conventions:
+- Use `string` instead of `str`
+- Use `integer` instead of `int`
+- Use `number` instead of `float`
+- Use `boolean` instead of `bool`
+- Use `array` instead of `list`
+- Use `object` instead of `dict`
 
 This makes the system more flexible and less error-prone when dealing with variable names.
 
@@ -165,13 +174,25 @@ When using output schemas, responses are returned as Pydantic models with dot no
 sentiment:
   type: string
   description: "Detected sentiment"
-  enum: ["positive", "negative", "neutral"]
+  options: ["positive", "negative", "neutral"]
 confidence:
   type: number
   description: "Confidence score"
+  required: false  # Optional field
 word_count:
   type: integer
   description: "Number of words analyzed"
+```
+
+> **Note**: The `options` field can be used with string, integer, and number types as long as all values are of the same type. For example:
+```yaml
+priority:
+  type: integer
+  options: [1, 2, 3]
+  
+confidence_intervals:
+  type: number
+  options: [0.25, 0.5, 0.75, 1.0]
 ```
 
 ```python

@@ -396,30 +396,40 @@ llm:
 
 #### Input Schema (`input_schema.yaml`)
 
-All field names in schemas are stored internally as lowercase. Use `optional: true` to mark non-required fields:
+All field names in schemas are stored internally as lowercase. Use `required: false` to mark optional fields. The `options` field can be used with string, number, and integer types to restrict allowed values:
 
 ```yaml
-# Required fields (default)
-name:  # Will match "name", "NAME", or "Name" in input
+# String options
+style:
+  type: string
+  description: "Writing style"
+  options: ["formal", "casual", "technical"]
+
+# Integer options
+priority:
+  type: integer
+  description: "Task priority level"
+  options: [1, 2, 3]
+
+# Number (float) options
+confidence_threshold:
+  type: number
+  description: "Processing confidence level"
+  options: [0.25, 0.5, 0.75, 0.95]
+
+# Regular fields without options
+name:
   type: string
   description: "User's name"
 
-style:  # Will match "style", "STYLE", or "Style" in input
-  type: string
-  description: "Writing style"
-  enum: ["formal", "casual", "technical"]
-
-# Optional fields must be explicitly marked
-tone:
-  type: string
-  description: "Tone override (optional)"
-  enum: ["happy", "serious", "playful"]
-  optional: true
+is_urgent:
+  type: boolean
+  description: "Whether the task is urgent"
 
 additional_context:
   type: string
   description: "Any additional context for the message"
-  optional: true
+  required: false
 ```
 
 #### Output Schema (`output_schema.yaml`)
@@ -431,16 +441,36 @@ When an output schema is defined, responses are returned as Pydantic models with
 message:
   type: string
   description: "Generated message"
+  
+status:
+  type: string
+  description: "Processing status"
+  options: ["complete", "partial", "failed"]
+
+priority_level:
+  type: integer
+  description: "Output priority"
+  options: [1, 2, 3, 4, 5]
+
+confidence:
+  type: number
+  description: "Confidence score"
+  options: [0.2, 0.4, 0.6, 0.8, 1.0]
+
+is_final:
+  type: boolean
+  description: "Whether this is the final version"
 
 # Optional fields
 metadata:
   type: object
   description: "Additional message metadata"
-  optional: true
+  required: false
   properties:
     tone:
       type: string
       description: "Detected tone of the message"
+      options: ["formal", "casual", "playful"]
     word_count:
       type: integer
       description: "Number of words in the message"
@@ -453,6 +483,11 @@ response = lt.run("analyze-text", {"text": "Sample input"})
 
 # Direct field access with dot notation
 print(response.message)
+print(response.status)          # Will be one of: "complete", "partial", "failed"
+print(response.priority_level)  # Will be one of: 1, 2, 3, 4, 5
+print(response.confidence)      # Will be one of: 0.2, 0.4, 0.6, 0.8, 1.0
+print(response.is_final)        # true or false
+
 if hasattr(response, 'metadata'):
     print(response.metadata.tone)
     print(response.metadata.word_count)
@@ -468,8 +503,7 @@ Key features of structured responses:
 - Automatic type conversion
 - Clear error messages for invalid access
 
-
-## Creating Custom Prompts
+### Creating Custom Prompts
 
 Each prompt in your prompt directory should follow this structure:
 
@@ -533,13 +567,25 @@ Input schema (`input_schema.yaml`):
 name:
   type: string
   description: "Recipient's name"
+
 style:
   type: string
   description: "Message style"
-  enum: ["formal", "casual", "professional"]
+  options: ["formal", "casual", "professional"]
+
+priority:
+  type: integer
+  description: "Message priority"
+  options: [1, 2, 3]
+
+is_draft:
+  type: boolean
+  description: "Whether this is a draft message"
+
 topic:
   type: string
   description: "Message topic"
+  required: false
 ```
 
 Output schema (`output_schema.yaml`):
@@ -547,17 +593,30 @@ Output schema (`output_schema.yaml`):
 message:
   type: string
   description: "Generated message"
+
 content_type:
   type: string
   description: "Type of content generated"
-  enum: ["greeting", "farewell", "announcement"]
+  options: ["greeting", "farewell", "announcement"]
+
+quality_score:
+  type: number
+  description: "Quality assessment score"
+  options: [0.25, 0.5, 0.75, 1.0]
+
+is_approved:
+  type: boolean
+  description: "Whether the content is approved"
+
 metadata:
   type: object
   description: "Additional message metadata"
+  required: false
   properties:
     tone:
       type: string
       description: "Detected tone of the message"
+      options: ["formal", "casual", "playful"]
     word_count:
       type: integer
       description: "Number of words in the message"
