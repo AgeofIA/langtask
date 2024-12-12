@@ -149,7 +149,8 @@ def validate_llm_output(
             - Output format doesn't match schema
             - Required fields are missing
             - Field types don't match
-            - JSON parsing fails
+            - Options validation fails
+            - List constraints aren't met
 
     Logs:
         - Validation failures with details (ERROR)
@@ -169,7 +170,16 @@ def validate_llm_output(
         if isinstance(output_data, StructuredResponse):
             return output_data
             
-        return output_schema(**output_data)
+        validated = output_schema(**output_data)
+        
+        logger.debug(
+            "Output validation successful",
+            request_id=request_id,
+            schema=output_schema.__name__,
+            field_count=len(validated.model_dump())
+        )
+        
+        return validated
         
     except ValidationError as e:
         error_details = e.errors()[0] if e.errors() else {}
@@ -191,32 +201,65 @@ def validate_llm_output(
             error_type=error_type,
             input_preview=input_preview
         )
-        
-        if error_type == 'dict_type' and isinstance(input_value, str) and input_value.strip().startswith('{'):
-            message = (
-                f"Schema validation failed at '{error_loc}': The LLM returned a string containing JSON "
-                f"instead of structured data. Received: '{input_preview}'. "
-                f"This usually means the LLM needs clearer instructions to return structured data. "
-                f"Try updating the prompt to explicitly request a structured response format."
-            )
-        elif error_type == 'missing':
-            message = (
+
+        # Map common validation errors to user-friendly messages
+        error_messages = {
+            'dict_type': (
+                f"The LLM returned an invalid format at '{error_loc}'. "
+                f"Expected a structured object but received: '{input_preview}'. "
+                f"Update the prompt to ensure proper response structure."
+            ),
+            'missing': (
                 f"Required field '{error_loc}' is missing from LLM output. "
-                f"Update the prompt to ensure all required fields are included in the response."
-            )
-        elif error_type == 'type_error':
-            message = (
+                f"Update the prompt to ensure all required fields are included."
+            ),
+            'type_error': (
                 f"Invalid type at '{error_loc}': Expected {error_details.get('expected', 'unknown')}, "
                 f"got {type(input_value).__name__}. Value: '{input_preview}'. "
-                f"Ensure the prompt clearly specifies the expected data types."
+                f"Ensure the prompt specifies the correct data types."
+            ),
+            'literal_error': (
+                f"Invalid option at '{error_loc}'. Value '{input_preview}' is not one of the allowed options. "
+                f"Update the prompt to specify valid choices."
+            ),
+            'list_type': (
+                f"Invalid list value at '{error_loc}': {error_details.get('msg')}. "
+                f"Ensure the prompt specifies the correct list format."
+            ),
+            'greater_than': (
+                f"Value too small at '{error_loc}': {error_details.get('msg')}. "
+                f"Update the prompt to specify valid value ranges."
+            ),
+            'less_than': (
+                f"Value too large at '{error_loc}': {error_details.get('msg')}. "
+                f"Update the prompt to specify valid value ranges."
+            ),
+            'string_pattern_match': (
+                f"Invalid format at '{error_loc}': {error_details.get('msg')}. "
+                f"Ensure the prompt specifies the required format."
+            ),
+            'string_too_short': (
+                f"Value too short at '{error_loc}': {error_details.get('msg')}. "
+                f"Update the prompt to specify minimum length requirements."
+            ),
+            'string_too_long': (
+                f"Value too long at '{error_loc}': {error_details.get('msg')}. "
+                f"Update the prompt to specify maximum length requirements."
+            )
+        }
+
+        # Special handling for JSON strings
+        if error_type == 'dict_type' and isinstance(input_value, str) and input_value.strip().startswith('{'):
+            message = (
+                f"The LLM returned a JSON string instead of structured data at '{error_loc}'. "
+                f"Received: '{input_preview}'. Update the prompt to return direct structured output."
             )
         else:
-            message = (
+            message = error_messages.get(error_type, (
                 f"Schema validation failed at '{error_loc}': {error_details.get('msg', str(e))}. "
-                f"The LLM response format doesn't match the schema definition. "
-                f"Error type: {error_type}. Received: '{input_preview}'. "
-                f"Review output_schema.yaml and ensure the LLM is prompted correctly."
-            )
+                f"The LLM response doesn't match the schema. Error type: {error_type}. "
+                f"Received: '{input_preview}'. Review the schema and prompt instructions."
+            ))
         
         raise SchemaValidationError(
             message=message,

@@ -109,7 +109,6 @@ def _validate_with_schema(
         input_params = {}
 
     try:
-        # Convert all input keys to lowercase to match schema
         lowercase_params = {
             k.lower(): v for k, v in input_params.items()
         }
@@ -131,13 +130,26 @@ def _validate_with_schema(
         
         for error in e.errors():
             field = error["loc"][0]
-            message = error["msg"]
-            error_type = error.get("type", "unknown")
+            error_type = error["type"]
             
-            error_details.append((field, message))
+            # Map Pydantic error types to user-friendly messages
+            error_message = {
+                "literal_error": "Invalid option",
+                "missing": "Required field",
+                "type_error": "Invalid type",
+                "value_error": "Invalid value",
+                "list_type": "Invalid list value",
+                "greater_than": "Value too small",
+                "less_than": "Value too large",
+                "string_pattern_match": "Invalid format",
+                "string_too_short": "Value too short",
+                "string_too_long": "Value too long",
+            }.get(error_type, error["msg"])
+            
+            error_details.append((field, error_message))
             constraints[field] = {
                 "error_type": error_type,
-                "message": message
+                "message": error["msg"]
             }
         
         logger.error(
@@ -148,16 +160,7 @@ def _validate_with_schema(
         )
         
         main_field = error_details[0][0] if error_details else None
-        error_messages = []
-        for field, msg in error_details:
-            if "type_error" in msg.lower():
-                error_messages.append(f"{field}: Invalid type")
-            elif "value_error" in msg.lower():
-                error_messages.append(f"{field}: Invalid value")
-            elif "missing" in msg.lower():
-                error_messages.append(f"{field}: Required")
-            else:
-                error_messages.append(f"{field}: {msg}")
+        error_messages = [f"{field}: {msg}" for field, msg in error_details]
         
         raise DataValidationError(
             message=f"Invalid input parameters: {', '.join(error_messages)}",

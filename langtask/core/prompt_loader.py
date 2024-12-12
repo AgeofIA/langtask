@@ -279,7 +279,7 @@ def _create_prompt_template(
         
         return template
         
-    except Exception as e:
+    except Exception:
         raise PromptValidationError(
             message="Failed to create template. Check variable usage matches schema and format {{variable}}.",
             prompt_path="template_creation",

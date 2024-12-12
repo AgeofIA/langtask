@@ -85,7 +85,7 @@ TYPE_MAPPING = {
     'integer': int,
     'number': float,
     'boolean': bool,
-    'object': dict[str, Any],  # Placeholder - objects use nested models
+    'object': dict[str, Any],  # Listed for validation - implementation uses nested Pydantic models
 }
 
 # Types that support options lists
@@ -389,7 +389,87 @@ def _convert_to_pydantic_field(
             field_kwargs["default"] = field_def.get('default', None)
         elif 'default' in field_def:
             field_kwargs["default"] = field_def['default']
+
+        # Handle string constraints
+        if field_def.get('type') == 'string':
+            if 'min_characters' in field_def:
+                if not isinstance(field_def['min_characters'], int) or field_def['min_characters'] < 0:
+                    raise SchemaValidationError(
+                        message=f"Field '{current_path}' min_characters must be a positive integer",
+                        schema_type="field",
+                        field=current_path,
+                        constraints={"min_characters": field_def['min_characters']}
+                    )
+                field_kwargs["min_length"] = field_def['min_characters']
+                
+            if 'max_characters' in field_def:
+                if not isinstance(field_def['max_characters'], int) or field_def['max_characters'] < 1:
+                    raise SchemaValidationError(
+                        message=f"Field '{current_path}' max_characters must be a positive integer",
+                        schema_type="field",
+                        field=current_path,
+                        constraints={"max_characters": field_def['max_characters']}
+                    )
+                field_kwargs["max_length"] = field_def['max_characters']
+                
+            if 'min_characters' in field_def and 'max_characters' in field_def:
+                if field_def['min_characters'] > field_def['max_characters']:
+                    raise SchemaValidationError(
+                        message=f"Field '{current_path}' min_characters cannot be greater than max_characters",
+                        schema_type="field",
+                        field=current_path,
+                        constraints={
+                            "min_characters": field_def['min_characters'],
+                            "max_characters": field_def['max_characters']
+                        }
+                    )
+                    
+            if 'pattern' in field_def:
+                try:
+                    re.compile(field_def['pattern'])
+                    field_kwargs["pattern"] = field_def['pattern']
+                except re.error as e:
+                    raise SchemaValidationError(
+                        message=f"Field '{current_path}' has invalid regex pattern: {str(e)}",
+                        schema_type="field",
+                        field=current_path,
+                        constraints={"pattern": field_def['pattern']}
+                    )
             
+        # Handle numeric constraints
+        if field_def.get('type') in ('integer', 'number'):
+            # Check for contradictory constraints
+            if 'min' in field_def and 'exclusive_min' in field_def:
+                raise SchemaValidationError(
+                    message=f"Field '{current_path}' cannot have both 'min' and 'exclusive_min' constraints",
+                    schema_type="field",
+                    field=current_path,
+                    constraints={"conflicting_rules": ["min", "exclusive_min"]}
+                )
+            
+            if 'max' in field_def and 'exclusive_max' in field_def:
+                raise SchemaValidationError(
+                    message=f"Field '{current_path}' cannot have both 'max' and 'exclusive_max' constraints",
+                    schema_type="field",
+                    field=current_path,
+                    constraints={"conflicting_rules": ["max", "exclusive_max"]}
+                )
+
+            # Handle inclusive bounds
+            if 'min' in field_def:
+                field_kwargs["ge"] = field_def['min']
+            if 'max' in field_def:
+                field_kwargs["le"] = field_def['max']
+            
+            # Handle exclusive bounds
+            if 'exclusive_min' in field_def:
+                field_kwargs["gt"] = field_def['exclusive_min']
+            if 'exclusive_max' in field_def:
+                field_kwargs["lt"] = field_def['exclusive_max']
+            
+            if 'multiple_of' in field_def:
+                field_kwargs["multiple_of"] = field_def['multiple_of']
+        
         return field_type, Field(**field_kwargs)
         
     except Exception as e:

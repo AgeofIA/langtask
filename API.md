@@ -430,20 +430,26 @@ field_name:
 #### Field Types & Properties
 
 ```yaml
-# String fields
+# String fields with constraints
 name:
   type: string
   description: "User's name"
+  min_characters: 2        # Minimum string length
+  max_characters: 100      # Maximum string length
+  pattern: "^[a-zA-Z ]+$"  # Regex pattern for validation
 
-# Integer fields
-count:
-  type: integer
-  description: "Item count"
-
-# Number (float) fields
+# Numeric fields with constraints
+# type: integer for whole numbers, number for float/decimal values
 score:
   type: number
   description: "Score value"
+  min: 0                # Minimum value (inclusive)
+  max: 100              # Maximum value (inclusive)
+  exclusive_min: 0      # Minimum value (exclusive)
+  exclusive_max: 100    # Maximum value (exclusive)
+  multiple_of: 0.5      # Must be multiple of this value
+
+# Note: min/exclusive_min and max/exclusive_max cannot be used together
 
 # Boolean fields
 is_active:

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched from Python Enums to Pydantic Literals for better type safety and simpler value handling
 - Limited options to string, integer, and number types only
 - Removed 'array' type in favor of new `list` attribute for more intuitive array definitions
+- Improved API documentation structure to include "Creating Custom Prompts" and "Working with Responses" sections
 
 ### Added
 - Dot notation access for response fields (e.g., `response.field` instead of `response["field"]`)
@@ -30,11 +31,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `list: n-m` for between n and m items
   - `list: n+` for n or more items
 - List validation support for both primitive types and objects
+- Support for string field constraints using:
+  - min_characters: Minimum string length
+  - max_characters: Maximum string length
+  - pattern: Regular expression pattern
+- Support for numeric field constraints using:
+  - min: Minimum value (inclusive)
+  - max: Maximum value (inclusive)
+  - exclusive_min: Minimum value (exclusive)
+  - exclusive_max: Maximum value (exclusive)
+  - multiple_of: Value must be multiple of this number
 
 ### Fixed
 - Resolved an error that occurred when using prompts without input_schema.yaml files
 - Corrected logger parameter handling for optional schema warnings
-- Improved API documentation
+- Enhanced field validation error messages by properly mapping Pydantic errors to user-friendly descriptions in input and output validators
 
 
 ## [0.1.0] - 2024-11-25
