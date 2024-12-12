@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolved an error that occurred when using prompts without input_schema.yaml files
 - Corrected logger parameter handling for optional schema warnings
 - Enhanced field validation error messages by properly mapping Pydantic errors to user-friendly descriptions in input and output validators
+- Updated prompt registration to reinitialize prompts when directories are re-registered, ensuring updates to existing prompts are captured
 
 
 ## [0.1.0] - 2024-11-25

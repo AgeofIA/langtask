@@ -32,11 +32,14 @@ logger = get_logger(__name__)
 # Registry data
 _prompts: dict[str, Any] = {}
 _dirs: list[str] = []
-_initialized: bool = False
 
 
 def register_prompt_directory(directory: str | Path) -> None:
-    """Register a prompt directory for template discovery.
+    """Register or refresh a prompt directory for template discovery.
+    
+    Registers a new directory or refreshes an existing one, ensuring all prompt
+    templates are up to date. Any changes to prompt files in registered directories
+    will be detected and loaded.
     
     Args:
         directory: Path to directory containing prompt templates
@@ -46,50 +49,49 @@ def register_prompt_directory(directory: str | Path) -> None:
         InitializationError: When prompt registration fails
         
     Logs:
-        - Directory registration (INFO)
-        - Duplicate directory warnings (WARNING)
-        - Registration failures (ERROR)
+        - New directory registration (INFO)
+        - Existing directory refresh (INFO)
+        - Directory processing failures (ERROR)
     """
-    global _dirs, _initialized
+    global _dirs
     
     try:
         directory_path = Path(directory)
+        str_path = str(directory_path)
         
         # Validate directory existence and accessibility
         validate_directory(directory_path)
-            
-        if str(directory_path) in _dirs:
-            logger.warning(
-                "Directory already registered",
-                directory=str(directory_path)
+        
+        # Add to directories if new
+        if str_path not in _dirs:
+            _dirs.append(str_path)
+            logger.info(
+                "Registered new directory",
+                directory=str_path,
+                directory_count=len(_dirs)
             )
-            return
-            
-        _dirs.append(str(directory_path))
-        _initialized = False
+        else:
+            logger.info(
+                "Refreshing existing directory",
+                directory=str_path,
+                directory_count=len(_dirs)
+            )
         
-        logger.info(
-            "Registered prompt directory",
-            directory=str(directory_path)
-        )
-        
+        # Force reinitialization to pick up any changes
         _initialize_prompts()
-        
-    except FileSystemError:
-        raise
         
     except Exception as e:
         logger.error(
-            "Failed to register prompt directory",
-            directory=str(directory),
+            "Failed to process directory",
+            directory=str_path,
             error=str(e),
             error_type=type(e).__name__
         )
         raise InitializationError(
-            message=f"Failed to register '{directory}'. Ensure directory exists and contains valid prompt templates.",
+            message=f"Failed to process directory '{directory}'. Ensure directory exists and contains valid prompt templates.",
             component="prompt_registry",
             state="registration",
-            dependencies=[str(directory)]
+            dependencies=[str_path]
         )
 
 
@@ -111,7 +113,7 @@ def get_prompt_config(prompt_id: str) -> dict[str, Any] | None:
     Logs:
         - Prompt not found errors (ERROR)
     """
-    if not _initialized:
+    if not _prompts:
         _initialize_prompts()
     
     prompt = _prompts.get(prompt_id)
@@ -180,7 +182,7 @@ def get_prompts_list() -> dict[str, dict[str, Any]]:
         ...     if info['has_llm_config']:
         ...         print("LLM settings configured")
     """
-    if not _initialized:
+    if not _prompts:
         _initialize_prompts()
         
     return {
@@ -231,7 +233,7 @@ def get_prompt_info(prompt_id: str) -> dict[str, Any]:
         ...     print(f"Input Schema: {info['schemas']['input']['content']}")
         >>> print(f"Prompt Template: {info['instructions']}")
     """
-    if not _initialized:
+    if not _prompts:
         _initialize_prompts()
     
     prompt = _prompts.get(prompt_id)
@@ -257,51 +259,74 @@ def get_prompt_info(prompt_id: str) -> dict[str, Any]:
 
 
 def _initialize_prompts() -> None:
-    """Initialize prompts from all registered directories."""
-    global _prompts, _initialized
+    """Initialize or refresh prompts from all registered directories.
     
-    if _initialized:
-        logger.info("Prompts already initialized")
-        return
-        
+    Loads all prompts from registered directories, either for initial loading
+    or refreshing existing prompts to pick up any changes.
+    """
+    global _prompts
+    
     try:
         start_time = time.time()
         
         if not _dirs:
             logger.info("No prompt directories registered")
             _prompts = {}
-            _initialized = True
             return
         
-        logger.info(
-            "Initializing prompts",
-            directory_count=len(_dirs)
-        )
+        # Load all prompts
+        new_prompts = discover_prompts_in_directories(_dirs)
         
-        _prompts = discover_prompts_in_directories(_dirs)
-        _initialized = True
-        
-        duration_ms = (time.time() - start_time) * 1000
-        logger.success(
-            "Prompts initialized successfully",
-            prompt_count=len(_prompts),
-            directory_count=len(_dirs),
-            duration_ms=round(duration_ms, 2)
-        )
-        
-    except FileSystemError:
-        raise
+        if _prompts:
+            # Calculate differences
+            added = set(new_prompts) - set(_prompts)
+            removed = set(_prompts) - set(new_prompts)
+            updated = {k for k in set(_prompts) & set(new_prompts) 
+                      if new_prompts[k] != _prompts[k]}
+            
+            # Update prompts
+            _prompts = new_prompts
+            
+            logger.success(
+                "Prompts refreshed",
+                prompt_count=len(_prompts),
+                directory_count=len(_dirs),
+                added=len(added),
+                removed=len(removed),
+                updated=len(updated),
+                duration_ms=round((time.time() - start_time) * 1000, 2)
+            )
+            
+            # Log detailed changes if any occurred
+            if added or removed or updated:
+                logger.info(
+                    "Changes detected",
+                    added=list(added) if added else None,
+                    removed=list(removed) if removed else None,
+                    updated=list(updated) if updated else None
+                )
+        else:
+            # Initial load
+            _prompts = new_prompts
+            
+            logger.success(
+                "Prompts initialized",
+                prompt_count=len(_prompts),
+                directory_count=len(_dirs),
+                duration_ms=round((time.time() - start_time) * 1000, 2)
+            )
         
     except Exception as e:
         logger.error(
-            "Failed to initialize prompts",
+            "Failed to load prompts",
             error=str(e),
-            error_type=type(e).__name__
+            error_type=type(e).__name__,
+            directory_count=len(_dirs)
         )
         raise InitializationError(
-            message="Failed to initialize prompts. Check directory permissions and prompt template formats.",
+            message="Failed to load prompts. Check directory permissions and prompt template formats.",
             component="prompt_registry",
-            state="initialization",
+            state="loading",
             dependencies=_dirs
         )
 
