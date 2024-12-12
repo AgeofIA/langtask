@@ -97,9 +97,6 @@ MAX_NESTING_DEPTH = 4
 # Regular expression for validating list specifications
 LIST_SPEC_PATTERN = re.compile(r'^(?:(\d+)-(\d+)|(\d+)\+)$')
 
-# Cache for created schema classes
-_schema_cache: dict[str, Type[StructuredResponse]] = {}
-
 
 def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Type[StructuredResponse] | None:
     """Load and convert a YAML schema into a Pydantic response class.
@@ -149,10 +146,6 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Ty
     path = Path(file_path)
     
     try:
-        # Check cache first
-        if str(path) in _schema_cache:
-            return _schema_cache[str(path)]
-            
         logger.info(
             "Loading YAML schema",
             file_path=str(path),
@@ -180,9 +173,6 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Ty
         # Validate and create model
         _validate_schema(yaml_schema)
         response_class = _create_pydantic_model(yaml_schema, path.stem)
-        
-        # Cache the created class
-        _schema_cache[str(path)] = response_class
         
         duration_ms = (time.time() - start_time) * 1000
         logger.success(
