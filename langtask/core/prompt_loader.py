@@ -255,15 +255,6 @@ def _create_prompt_template(
         
         # Convert template format while preserving regular brackets
         template_content = _convert_template_format(instructions_content)
-        
-        # Add format instructions for structured output
-        if output_schema:
-            template_content += (
-                f"\n\nFormat your response as a valid {output_schema.__name__} with "
-                f"the following fields: {', '.join(output_schema.model_fields.keys())}. "
-                f"Use proper types for each field."
-            )
-        
         template = ChatPromptTemplate(
             messages=[
                 HumanMessagePromptTemplate.from_template(template_content)
