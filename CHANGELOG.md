@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed 'array' type in favor of new `list` attribute for more intuitive array definitions
 - Improved API documentation structure to include "Creating Custom Prompts" and "Working with Responses" sections
 - Adjusted logging levels across request lifecycle for cleaner console output
+- Improved separation of concerns between LLM processing and output validation errors by moving provider interaction code from output_validator.py to llm_processor.py
 
 ### Added
 - Dot notation access for response fields (e.g., `response.field` instead of `response["field"]`)

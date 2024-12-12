@@ -13,6 +13,7 @@ import uuid
 from typing import Any, Type
 
 from langchain.prompts import ChatPromptTemplate
+from langchain_core.outputs import ChatGeneration, Generation
 
 from .exceptions import (
     DataValidationError,
@@ -58,10 +59,10 @@ def process_llm_request(prompt_id: str, input_params: dict[str, Any] | None = No
         PromptValidationError: When prompt not found or no directories registered
 
     Logs:
-        - Request start with ID (INFO)
-        - Request completion with metrics (SUCCESS)
-        - Validation and provider errors (ERROR)
-        - Unexpected failures (ERROR)
+        INFO: Starting request processing with prompt details
+        SUCCESS: Request completion with duration and metrics
+        ERROR: Validation and provider failures with context
+        ERROR: Unexpected processing errors with details
 
     Example:
         >>> # Simple text response
@@ -159,14 +160,32 @@ def _process_llm_call(
     provider_name = provider.__class__.__name__
     
     try:
-        # Prepare and Send Request
+        # Configure provider for structured output if needed
+        if output_schema:
+            try:
+                provider = provider.with_structured_output(output_schema)
+            except Exception as e:
+                logger.error(
+                    "Failed to configure structured output",
+                    request_id=request_id,
+                    provider=provider_name,
+                    error=str(e)
+                )
+                raise ProviderAPIError(
+                    message=f"Failed to configure {provider_name} for structured output. Check schema compatibility.",
+                    provider=provider_name,
+                    response=getattr(e, 'response', None)
+                )
+        
+        # Prepare request messages
         messages = prompt.format_prompt(**params)
         
         # Log request initiation at INFO level
         logger.info(
             "Initiating LLM request",
             request_id=request_id,
-            provider=provider_name
+            provider=provider_name,
+            has_schema=bool(output_schema)
         )
         
         # Log detailed message content at DEBUG level
@@ -177,26 +196,57 @@ def _process_llm_call(
             provider=provider_name
         )
 
-        # Process Response
-        if output_schema:
-            response = handle_structured_output(
-                provider,
-                messages,
-                output_schema,
-                request_id
-            )
-        else:
+        # Process Request
+        try:
             response = provider.invoke(messages.to_messages())
-            response = response.content
+        except Exception as e:
+            logger.error(
+                "Provider request failed",
+                request_id=request_id,
+                provider=provider_name,
+                error=str(e)
+            )
+            raise ProviderAPIError(
+                message=f"LLM request failed ({provider_name}). Check API status and rate limits.",
+                provider=provider_name,
+                response=getattr(e, 'response', None)
+            )
 
-        logger.debug(
-            "LLM response received",
-            request_id=request_id,
-            duration_ms=_get_duration_ms(start_time),
-            response_type=type(response).__name__
-        )
-        
-        return response
+        # Process Response
+        try:
+            # Extract raw response content
+            if isinstance(response, (ChatGeneration, Generation)):
+                response = response.text
+            
+            # Validate structured output if schema exists
+            if output_schema:
+                response = handle_structured_output(response, output_schema, request_id)
+            else:
+                response = response.content if hasattr(response, 'content') else response
+
+            logger.debug(
+                "LLM response received",
+                request_id=request_id,
+                duration_ms=_get_duration_ms(start_time),
+                response_type=type(response).__name__
+            )
+            
+            return response
+            
+        except SchemaValidationError:
+            raise
+        except Exception as e:
+            logger.error(
+                "Response processing failed",
+                request_id=request_id,
+                provider=provider_name,
+                error=str(e)
+            )
+            raise ProviderAPIError(
+                message=f"Failed to process {provider_name} response. Check response format and schema.",
+                provider=provider_name,
+                response=getattr(e, 'response', None)
+            )
 
     except (SchemaValidationError, ProviderAPIError):
         raise
@@ -210,7 +260,7 @@ def _process_llm_call(
             provider=provider_name
         )
         raise ProviderAPIError(
-            message=f"LLM request failed ({provider_name}). Check API status and rate limits.",
+            message=f"LLM interaction failed ({provider_name}). Check provider status.",
             provider=provider_name,
             response=getattr(e, 'response', None)
         )
