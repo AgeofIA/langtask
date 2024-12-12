@@ -10,7 +10,7 @@ Public Functions:
 
 from typing import Any, Type
 
-from langchain_core.output_parsers import BaseOutputParser
+from langchain_core.exceptions import OutputParserException
 from langchain_core.outputs import ChatGeneration, Generation
 from pydantic import ValidationError
 
@@ -95,7 +95,7 @@ def handle_structured_output(
         
     except Exception as e:
         is_parsing_error = (
-            isinstance(e, BaseOutputParser.OutputParserException) or
+            isinstance(e, (ValidationError, OutputParserException)) or
             (hasattr(e, '__cause__') and isinstance(e.__cause__, ValidationError))
         )
         
@@ -109,11 +109,21 @@ def handle_structured_output(
         )
         
         if is_parsing_error:
+            error_message = (
+                f"Failed to parse LLM response into expected schema format. "
+                f"Review output_schema.yaml and prompt instructions."
+            )
+            if isinstance(e, OutputParserException):
+                error_message = f"{error_message} Parser observation: {e.observation}"
+            
             raise SchemaValidationError(
-                message=f"Failed to parse LLM response into expected schema format. Review output_schema.yaml and prompt instructions.",
+                message=error_message,
                 schema_type="output",
                 field=output_schema.__name__,
-                constraints={"error": str(e)}
+                constraints={
+                    "error": str(e),
+                    "llm_output": getattr(e, "llm_output", None) if isinstance(e, OutputParserException) else None
+                }
             )
             
         raise ProviderAPIError(

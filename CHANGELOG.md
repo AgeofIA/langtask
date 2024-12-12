@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced field validation error messages by properly mapping Pydantic errors to user-friendly descriptions in input and output validators
 - Updated prompt registration to reinitialize prompts when directories are re-registered, ensuring updates to existing prompts are captured
 - Fixed request ID propagation through file reading operations to maintain consistent request tracing in logs
+- Fixed incorrect OutputParserException import path and restored proper LangChain parsing error handling
 
 
 ## [0.1.0] - 2024-11-25
