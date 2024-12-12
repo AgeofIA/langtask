@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.1.2] - Unreleased
+
+### Fixed
+- Fixed schema validation where `required: false` was not working correctly, causing all fields to be treated as required regardless of setting
+- Optional status (`required: false`) now properly cascades to child fields in nested objects
+
+
 ## [0.1.1] - 2024-12-12
 
 ### Changed
@@ -105,5 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - python-dotenv >= 0.19.0
 - loguru >= 0.7.0
 
-[0.1.0]: https://github.com/AgeofIA/langtask/releases/tag/v0.1.0
+
+[0.1.2]: https://github.com/AgeofIA/langtask/releases/tag/v0.1.2
 [0.1.1]: https://github.com/AgeofIA/langtask/releases/tag/v0.1.1
+[0.1.0]: https://github.com/AgeofIA/langtask/releases/tag/v0.1.0

@@ -547,15 +547,15 @@ notes:
   required: false
   description: Additional notes
 
-# Optional nested object
+# Optional nested object (all nested fields automatically become optional)
 metadata:
   type: object
   required: false
   properties:
     created_at:
-      type: string
+      type: string  # Automatically optional
     author:
-      type: string
+      type: string  # Automatically optional
 ```
 
 

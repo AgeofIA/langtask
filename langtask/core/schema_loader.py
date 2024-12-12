@@ -14,7 +14,7 @@ Public Functions:
 import re
 import time
 from pathlib import Path
-from typing import Any, Literal, Type
+from typing import Any, Literal, Type, get_args, get_origin
 
 from pydantic import BaseModel, Field, create_model, ValidationError
 
@@ -159,7 +159,7 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Ty
             request_id=request_id
         )
         
-        yaml_schema = read_yaml_file(path, request_id=request_id)
+        yaml_schema = read_yaml_file(path)
         if not yaml_schema:
             logger.debug(
                 "No schema defined",
@@ -484,6 +484,9 @@ def _get_field_type(field_name: str, field_def: dict[str, Any], parent_path: str
     current_path = f"{parent_path}.{field_name}" if parent_path else field_name
     base_type = None
     
+    # Get parent's required status - defaults to True if not specified
+    is_required = field_def.get('required', True)
+    
     # Handle fields with options using Literal types
     if 'options' in field_def:
         try:
@@ -504,13 +507,18 @@ def _get_field_type(field_name: str, field_def: dict[str, Any], parent_path: str
         # Create nested fields
         nested_fields = {}
         for prop_name, prop_def in field_def['properties'].items():
+            # If parent is optional, property inherits this unless explicitly overridden
+            if not is_required:
+                prop_def = prop_def.copy()  # Create copy to avoid modifying original
+                prop_def.setdefault('required', False)
+                
             nested_type, nested_info = _convert_to_pydantic_field(
                 prop_name.lower(),
                 prop_def,
                 current_path
             )
             nested_fields[prop_name.lower()] = (nested_type, nested_info)
-        
+            
         # Create nested model with descriptive name and proper inheritance
         model_name = f"{current_path.title().replace('.', '_')}Model"
         base_type = create_model(
@@ -528,6 +536,15 @@ def _get_field_type(field_name: str, field_def: dict[str, Any], parent_path: str
     if 'list' in field_def:
         return list[base_type] if base_type is not None else list
         
+    # Make type optional if required=false
+    if not is_required and base_type is not None:
+        if get_origin(base_type) is not None and get_origin(base_type) is Literal:
+            existing_args = get_args(base_type)
+            if type(None) not in existing_args:
+                base_type = Literal[existing_args + (None,)]  # type: ignore
+        else:
+            base_type = base_type | None
+    
     return base_type or Any  # Fallback to Any for unknown types
 
 
