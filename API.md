@@ -392,22 +392,22 @@ Structure of `config.yaml` for individual prompts:
 id: "prompt-id"
 
 # Optional fields
-display_name: "Human Readable Name"
-description: "Description of what this prompt does"
+display_name: Human Readable Name
+description: Description of what this prompt does
 
 # Optional LLM settings (will use global config if not specified)
 llm:
-  provider: "anthropic"
-  model: "claude-3-5-haiku-20241022"
+  provider: anthropic
+  model: claude-3-5-haiku-20241022
   temperature: 0.7
 
 # Optional multiple providers
 llm:
-  - provider: "anthropic"
-    model: "claude-3-5-haiku-20241022"
+  - provider: anthropic
+    model: claude-3-5-haiku-20241022
     temperature: 0.7
-  - provider: "openai"
-    model: "gpt-4"
+  - provider: openai
+    model: gpt-4o-mini
     temperature: 0.5
 ```
 
@@ -420,7 +420,7 @@ Both input (`input_schema.yaml`) and output (`output_schema.yaml`) schemas follo
 ```yaml
 field_name:
   type: string         # Required - type of the field
-  description: "..."   # Optional - field description
+  description: ...   # Optional - field description
   required: false      # Optional - defaults to true
   options: [...]       # Optional - restrict allowed values (for string, integer, and number types)
   list: ...            # Optional - make field a list
@@ -433,10 +433,10 @@ field_name:
 # String fields with constraints
 name:
   type: string
-  description: "User's name"
+  description: User's name
   min_characters: 2        # Minimum string length
   max_characters: 100      # Maximum string length
-  pattern: "^[a-zA-Z ]+$"  # Regex pattern for validation
+  pattern: ^[a-zA-Z ]+$    # Regex pattern for validation
 
 # Numeric fields with constraints
 # type: integer for whole numbers, number for float/decimal values
@@ -459,7 +459,7 @@ is_active:
 # Object fields with nested properties
 metadata:
   type: object
-  description: "Additional metadata"
+  description: Additional metadata
   properties:
     name:
       type: string
@@ -473,19 +473,19 @@ metadata:
 # String options
 status:
   type: string
-  description: "Processing status"
+  description: Processing status
   options: ["complete", "partial", "failed"]
 
 # Integer options
 priority:
   type: integer
-  description: "Task priority level"
+  description: Task priority level
   options: [1, 2, 3]
 
 # Number (float) options
 confidence:
   type: number
-  description: "Processing confidence"
+  description: Processing confidence
   options: [0.25, 0.5, 0.75, 1.0]
 ```
 
@@ -496,27 +496,27 @@ confidence:
 tags:
   type: string
   list: true
-  description: "Tag list"
+  description: Tag list
 
 # Exact count
 required_scores:
   type: number
   list: 3
   options: [1, 2, 3, 4, 5]
-  description: "Must provide exactly 3 scores"
+  description: Must provide exactly 3 scores
 
 # Range of items
 categories:
   type: string
   list: 1-3
   options: ["A", "B", "C"]
-  description: "Between 1 and 3 categories"
+  description: Between 1 and 3 categories
 
 # Minimum items
 products:
   type: object
   list: 3+
-  description: "At least 3 products"
+  description: At least 3 products
   properties:
     name:
       type: string
@@ -538,14 +538,14 @@ format:
   type: string
   options: ["short", "long"]
   required: false
-  default: "short"
-  description: "Output format"
+  default: short
+  description: Output format
 
 # Optional field without default (will be null if not provided)
 notes:
   type: string
   required: false
-  description: "Additional notes"
+  description: Additional notes
 
 # Optional nested object
 metadata:
@@ -570,7 +570,7 @@ response = lt.run("analyze-text", {"text": "Sample input"})
 
 # Print full response with clean formatting
 print(response)
-# AnalyzeTextResponse(
+# OutputSchemaResponse(
 #     message='This is a detailed analysis...',
 #     status='complete',
 #     priority_level=2,

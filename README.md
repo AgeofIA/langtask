@@ -46,11 +46,11 @@ prompts/
 ```yaml
 # config.yaml
 id: greeting
-display_name: "Greeting Generator"
-description: "Generates personalized greetings"
+display_name: Greeting Generator
+description: Generates personalized greetings
 llm:
-  provider: "anthropic"
-  model: "claude-3-5-sonnet-20241022"
+  provider: anthropic
+  model: claude-3-5-sonnet-20241022
   temperature: 0.7
 ```
 
@@ -60,10 +60,10 @@ llm:
 # input_schema.yaml
 name:
   type: string
-  description: "Name of the person to greet"
+  description: Name of the person to greet
 style:
   type: string
-  description: "Style of greeting"
+  description: Style of greeting
   options: ["formal", "casual"]
   required: false  # This field is optional
 ```
@@ -81,7 +81,7 @@ Generate a {{style}} greeting for {{name}}.
 
 ```python
 # Register prompt directory
-lt.register("./prompts")
+lt.register("prompts")
 
 # For simple text responses (no output schema)
 response = lt.run("greeting", {
@@ -155,11 +155,11 @@ Or use provider-specific settings per prompt in `config.yaml`:
 
 ```yaml
 llm:
-  - provider: "anthropic"
-    model: "claude-3-5-haiku-20241022"
+  - provider: anthropic
+    model: claude-3-5-haiku-20241022
     temperature: 0.7
-  - provider: "openai"
-    model: "gpt-4"
+  - provider: openai
+    model: gpt-4
     temperature: 0.5
     max_tokens: 1000
 ```
@@ -172,15 +172,15 @@ When using output schemas, responses are returned as Pydantic models with dot no
 # Define output schema (output_schema.yaml):
 sentiment:
   type: string
-  description: "Detected sentiment"
+  description: Detected sentiment
   options: ["positive", "negative", "neutral"]
 confidence:
   type: number
-  description: "Confidence score"
+  description: Confidence score
   required: false  # Optional field
 word_count:
   type: integer
-  description: "Number of words analyzed"
+  description: Number of words analyzed
 ```
 
 > **Note**: The `options` field can be used with string, integer, and number types as long as all values are of the same type. For example:
