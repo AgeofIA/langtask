@@ -53,9 +53,9 @@ def set_global_config(
         SchemaValidationError: Configuration validation failure
         
     Logs:
-        - INFO: Successful configuration updates with config count
-        - ERROR: Configuration validation failures with detailed errors
-        - ERROR: Unexpected configuration errors with context
+        INFO: Global configuration updates with config count
+        ERROR: Configuration validation failures with details
+        ERROR: Unexpected configuration errors
     """
     global _global_config, _override_local_config
     
@@ -150,13 +150,9 @@ def load_config(file_path: str | Path) -> PromptConfig:
         SchemaValidationError: Configuration validation failure
         
     Logs:
-        - INFO: Successful configuration loads with prompt ID and file path
-        - ERROR: Validation failures with detailed error context
-        - ERROR: General load failures with error details
-    
-    Note:
-        When global config override is enabled, local LLM settings will be
-        replaced with global defaults if available.
+        DEBUG: Successful configuration loads with prompt ID and path
+        ERROR: Validation failures with detailed error context
+        ERROR: General load failures with error details
     """
     path = Path(file_path)
     config_key = path.stem
@@ -176,7 +172,7 @@ def load_config(file_path: str | Path) -> PromptConfig:
         if should_override_local_config() or not config.llm:
             _apply_global_defaults(config)
             
-        logger.info(
+        logger.debug(
             "Configuration loaded successfully",
             prompt_id=config.id,
             file_path=str(path)

@@ -48,15 +48,13 @@ def validate_prompt_input(
         SchemaValidationError: When schema validation system fails
 
     Logs:
-        - Validation start with parameter counts (INFO)
-        - Schema validation results (DEBUG)
-        - Missing parameters (ERROR)
-        - Unknown parameters (WARNING)
-        - Completion metrics (SUCCESS)
+        DEBUG: Starting input validation with parameters
+        INFO: Input validation completion with duration and fields
+        ERROR: Unexpected validation errors with details
     """
     start_time = time.time()
     
-    logger.info(
+    logger.debug(
         "Starting input validation",
         request_id=request_id,
         has_schema=bool(input_schema),
@@ -71,7 +69,7 @@ def validate_prompt_input(
             result = _validate_without_schema(input_params or {}, prompt_variables, request_id)
         
         duration_ms = (time.time() - start_time) * 1000
-        logger.success(
+        logger.info(
             "Input validation successful",
             request_id=request_id,
             duration_ms=round(duration_ms, 2),

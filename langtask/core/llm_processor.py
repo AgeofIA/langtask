@@ -161,6 +161,15 @@ def _process_llm_call(
     try:
         # Prepare and Send Request
         messages = prompt.format_prompt(**params)
+        
+        # Log request initiation at INFO level
+        logger.info(
+            "Initiating LLM request",
+            request_id=request_id,
+            provider=provider_name
+        )
+        
+        # Log detailed message content at DEBUG level
         logger.debug(
             "Sending prompt to LLM",
             request_id=request_id,

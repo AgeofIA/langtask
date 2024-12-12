@@ -53,9 +53,9 @@ def handle_structured_output(
         ProviderAPIError: When provider communication or processing fails
 
     Logs:
-        - Validation failures with details (ERROR)
-        - Processing errors with context (ERROR)
-        - Success metrics (DEBUG)
+        ERROR: Validation failures with details
+        ERROR: Processing errors with context
+        ERROR: Structured output processing failures with error type
 
     Example:
         >>> schema = SentimentResponse
@@ -153,9 +153,8 @@ def validate_llm_output(
             - List constraints aren't met
 
     Logs:
-        - Validation failures with details (ERROR)
-        - Type conversion attempts (DEBUG)
-        - Success metrics (DEBUG)
+        DEBUG: Output validation successful with field count
+        ERROR: Output validation failures with error details
 
     Example:
         >>> schema = SentimentResponse

@@ -49,9 +49,9 @@ def register_prompt_directory(directory: str | Path) -> None:
         InitializationError: When prompt registration fails
         
     Logs:
-        - New directory registration (INFO)
-        - Existing directory refresh (INFO)
-        - Directory processing failures (ERROR)
+        INFO: New directory registration
+        INFO: Existing directory refresh
+        ERROR: Directory processing failures
     """
     global _dirs
     
@@ -111,7 +111,7 @@ def get_prompt_config(prompt_id: str) -> dict[str, Any] | None:
         InitializationError: When prompts cannot be initialized
         
     Logs:
-        - Prompt not found errors (ERROR)
+        ERROR: Prompt not found errors
     """
     if not _prompts:
         _initialize_prompts()
@@ -164,7 +164,7 @@ def get_prompts_list() -> dict[str, dict[str, Any]]:
                 "prompt-id": {
                     "display_name": str,        # Optional display name 
                     "description": str,         # Optional description
-                    "has_llm_config": bool,           # Whether prompt has LLM settings
+                    "has_llm_config": bool,     # Whether prompt has LLM settings
                     "has_input_schema": bool,   # Whether input schema exists
                     "has_output_schema": bool   # Whether output schema exists
                 }
@@ -225,6 +225,10 @@ def get_prompt_info(prompt_id: str) -> dict[str, Any]:
         PromptValidationError: When requested prompt doesn't exist
         InitializationError: When prompts cannot be initialized
         FileSystemError: When prompt files cannot be read
+        
+    Logs:
+        ERROR: Prompt not found errors
+        WARNING: Failed schema loading
         
     Example:
         >>> info = get_prompt_info("translate-text")

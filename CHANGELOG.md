@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Limited options to string, integer, and number types only
 - Removed 'array' type in favor of new `list` attribute for more intuitive array definitions
 - Improved API documentation structure to include "Creating Custom Prompts" and "Working with Responses" sections
+- Adjusted logging levels across request lifecycle for cleaner console output
 
 ### Added
 - Dot notation access for response fields (e.g., `response.field` instead of `response["field"]`)
@@ -47,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected logger parameter handling for optional schema warnings
 - Enhanced field validation error messages by properly mapping Pydantic errors to user-friendly descriptions in input and output validators
 - Updated prompt registration to reinitialize prompts when directories are re-registered, ensuring updates to existing prompts are captured
+- Fixed request ID propagation through file reading operations to maintain consistent request tracing in logs
 
 
 ## [0.1.0] - 2024-11-25

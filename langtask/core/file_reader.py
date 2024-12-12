@@ -27,7 +27,8 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 def read_text_file(
     file_path: str | Path,
-    max_size: int | None = MAX_FILE_SIZE
+    max_size: int | None = MAX_FILE_SIZE,
+    request_id: str | None = None
 ) -> str:
     """Read the content of a text file with UTF-8 encoding.
 
@@ -42,6 +43,7 @@ def read_text_file(
             or a Path object. Relative paths are resolved to absolute paths.
         max_size: Maximum allowed file size in bytes. Set to None to disable
             size checking. Defaults to MAX_FILE_SIZE (10MB).
+        request_id: Optional identifier for tracing and logging purposes.
 
     Returns:
         str: Complete content of the file as a string.
@@ -110,7 +112,8 @@ def read_text_file(
             "File read successfully",
             path=str(path),
             size_bytes=path.stat().st_size,
-            duration_ms=round(duration_ms, 2)
+            duration_ms=round(duration_ms, 2),
+            request_id=request_id
         )
         return content
         
@@ -118,7 +121,8 @@ def read_text_file(
         logger.error(
             "UTF-8 encoding error",
             path=str(path),
-            error=str(e)
+            error=str(e),
+            request_id=request_id
         )
         raise FileSystemError(
             message="File must be UTF-8 encoded. Check file encoding and try again.",
@@ -133,7 +137,8 @@ def read_text_file(
         logger.error(
             "Unexpected error reading file",
             path=str(path),
-            error=str(e)
+            error=str(e),
+            request_id=request_id
         )
         raise FileSystemError(
             message=f"Cannot read file. Verify file exists and has read permissions.",
@@ -144,7 +149,8 @@ def read_text_file(
 
 def read_yaml_file(
     file_path: str | Path,
-    max_size: int | None = MAX_FILE_SIZE
+    max_size: int | None = MAX_FILE_SIZE,
+    request_id: str | None = None
 ) -> dict[str, Any]:
     """Read and parse a YAML file with validation.
 
@@ -159,6 +165,7 @@ def read_yaml_file(
             or a Path object. Relative paths are resolved to absolute paths.
         max_size: Maximum allowed file size in bytes. Set to None to disable
             size checking. Defaults to MAX_FILE_SIZE (10MB).
+        request_id: Optional identifier for tracing and logging purposes.
 
     Returns:
         Dict[str, Any]: Parsed YAML content as a dictionary. Returns an empty
@@ -205,7 +212,7 @@ def read_yaml_file(
     path = Path(file_path)
     
     try:
-        content = read_text_file(path, max_size)
+        content = read_text_file(path, max_size, request_id)
         yaml_content = yaml.safe_load(content) or {}
         
         duration_ms = (time.time() - start_time) * 1000
@@ -213,7 +220,8 @@ def read_yaml_file(
             "YAML parsed successfully",
             path=str(path),
             items=len(yaml_content) if isinstance(yaml_content, dict) else 0,
-            duration_ms=round(duration_ms, 2)
+            duration_ms=round(duration_ms, 2),
+            request_id=request_id
         )
         return yaml_content
         
@@ -221,7 +229,8 @@ def read_yaml_file(
         logger.error(
             "YAML parsing error",
             path=str(path),
-            error=str(e)
+            error=str(e),
+            request_id=request_id
         )
         error_info = {
             "line": getattr(e, 'problem_mark', None) and e.problem_mark.line + 1,

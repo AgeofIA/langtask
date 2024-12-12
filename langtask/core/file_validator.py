@@ -44,11 +44,10 @@ def validate_file(file_path: str | Path, required: bool = True) -> bool:
             - Unexpected errors during validation
             
     Logs:
-        - All validation attempts are logged
-        - Successful validations logged at DEBUG level
-        - Missing required files logged at WARNING level
-        - Permission and access errors logged at ERROR level
-        All log entries include the file path and error details when available.
+        WARNING: Required file not found
+        ERROR: Permission denied with details
+        ERROR: File system errors with details
+        ERROR: Unexpected errors during validation
             
     Example:
         >>> try:
@@ -152,11 +151,10 @@ def validate_directory(dir_path: str | Path) -> None:
             - Unexpected errors during validation
             
     Logs:
-        - All validation attempts are logged
-        - Successful validations logged at DEBUG level
-        - Missing directories logged at WARNING level
-        - Permission and access errors logged at ERROR level
-        All log entries include the directory path and error details when available.
+        WARNING: Directory not found
+        ERROR: Permission denied with details
+        ERROR: Directory access errors with details
+        ERROR: Unexpected errors during validation
 
     Note:
         The function tests basic directory traversal by attempting to get the

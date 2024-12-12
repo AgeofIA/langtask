@@ -120,6 +120,13 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Ty
             - Nested object depth exceeds MAX_NESTING_DEPTH
         FileSystemError: When schema file cannot be accessed
 
+    Logs:
+        DEBUG: Loading YAML schema with file path
+        DEBUG: No schema defined in file
+        DEBUG: Schema loaded with duration and field count
+        ERROR: Pydantic model creation failures with errors
+        ERROR: Unexpected loading errors with details
+
     Notes:
         - All fields are required by default unless marked with required: false
         - Nested objects must define their fields in a 'properties' key
@@ -146,15 +153,15 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Ty
     path = Path(file_path)
     
     try:
-        logger.info(
+        logger.debug(
             "Loading YAML schema",
             file_path=str(path),
             request_id=request_id
         )
         
-        yaml_schema = read_yaml_file(path)
+        yaml_schema = read_yaml_file(path, request_id=request_id)
         if not yaml_schema:
-            logger.info(
+            logger.debug(
                 "No schema defined",
                 file_path=str(path),
                 request_id=request_id
@@ -175,7 +182,7 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Ty
         response_class = _create_pydantic_model(yaml_schema, path.stem)
         
         duration_ms = (time.time() - start_time) * 1000
-        logger.success(
+        logger.debug(
             "Schema loaded and converted",
             file_path=str(path),
             duration_ms=round(duration_ms, 2),

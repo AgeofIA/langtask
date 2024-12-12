@@ -54,17 +54,18 @@ def discover_prompts_in_directories(directories: list[str | Path]) -> dict[str, 
             - File processing fails
 
     Logs:
-        - Discovery start with directory count (INFO)
-        - Individual prompt discovery (INFO)
-        - Duplicate prompt warnings (WARNING)
-        - Processing errors (ERROR)
-        - Completion metrics (SUCCESS)
+        DEBUG: Starting prompt discovery with directory count
+        DEBUG: Processing individual directories
+        INFO: Discovered prompt with details
+        WARNING: Duplicate prompt ID detection
+        ERROR: Processing failures and validation errors
+        DEBUG: Completion metrics with prompt count and duration
     """
     start_time = time.time()
     discovered_prompts: dict[str, dict] = {}
     
     try:
-        logger.info(
+        logger.debug(
             "Starting prompt discovery",
             directory_count=len(directories)
         )
@@ -82,7 +83,7 @@ def discover_prompts_in_directories(directories: list[str | Path]) -> dict[str, 
             _discover_prompts_in_directory(dir_path, discovered_prompts)
         
         duration_ms = (time.time() - start_time) * 1000
-        logger.success(
+        logger.debug(
             "Prompt discovery completed",
             prompt_count=len(discovered_prompts),
             duration_ms=round(duration_ms, 2)
@@ -113,7 +114,7 @@ def _discover_prompts_in_directory(
     discovered_prompts: dict
 ) -> None:
     """Process single directory and update discovered_prompts dict."""
-    logger.info(
+    logger.debug(
         "Scanning directory for prompts",
         directory=str(directory)
     )
@@ -156,7 +157,7 @@ def _discover_prompts_in_directory(
                     'source_directory': directory
                 }
                 
-                logger.info(
+                logger.debug(
                     "Discovered prompt",
                     prompt_id=config.id,
                     directory=str(directory),

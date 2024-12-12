@@ -43,11 +43,12 @@ def initialize_provider(
         ProviderAuthenticationError: When all provider connections fail
 
     Logs:
-        - Connection attempts (INFO)
-        - Provider initialization success (SUCCESS)
-        - Authentication failures (WARNING)
-        - Connection errors (ERROR)
-        - Performance metrics (SUCCESS/ERROR)
+        INFO: Attempting provider connection with details
+        INFO: Provider initialized with duration
+        WARNING: Unsupported provider detection
+        ERROR: No LLM configurations provided
+        ERROR: Unexpected initialization errors with details
+        ERROR: All provider initializations failed with count and duration
     """
     if not llm_configs:
         logger.error(
@@ -93,7 +94,7 @@ def initialize_provider(
                 continue
                 
             duration_ms = (time.time() - start_time) * 1000
-            logger.success(
+            logger.info(
                 "Provider initialized",
                 request_id=request_id,
                 provider=config.provider,

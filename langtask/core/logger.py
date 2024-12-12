@@ -111,8 +111,8 @@ class LoggerWrapper:
                     request_id = extras.pop('request_id')
                     duration_ms = extras.pop('duration_ms', None)
                     
-                    # Format message with duration for success logs
-                    if name == 'success' and duration_ms is not None:
+                    # Format message with duration if duration exists
+                    if duration_ms is not None:
                         message = f"{message} ({duration_ms:.2f}ms)"
                     
                     # Format extra fields

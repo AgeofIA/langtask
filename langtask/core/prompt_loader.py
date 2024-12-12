@@ -60,12 +60,12 @@ def load_prompt(
         SchemaValidationError: When schema validation fails
 
     Logs:
-        - Prompt loading start (INFO)
-        - File loading operations (DEBUG)
-        - Schema loading status (DEBUG)
-        - LLM configurations (DEBUG)
-        - Success metrics (SUCCESS)
-        - Processing errors (ERROR)
+        DEBUG: Loading prompt with ID
+        DEBUG: Loading instruction file
+        DEBUG: Loading output/input schemas
+        DEBUG: LLM configuration details
+        ERROR: Failed to load prompt with error details
+        INFO: Prompt loaded with duration and schema info
 
     Example:
         >>> try:
@@ -80,7 +80,7 @@ def load_prompt(
     start_time = time.time()
     
     try:
-        logger.info(
+        logger.debug(
             "Loading prompt",
             prompt_id=prompt_id,
             request_id=request_id
@@ -105,7 +105,10 @@ def load_prompt(
                 file=files['instructions.md'],
                 request_id=request_id
             )
-            instructions_content = read_text_file(files['instructions.md'])
+            instructions_content = read_text_file(
+                files['instructions.md'],
+                request_id=request_id
+            )
             
         except FileSystemError as e:
             raise PromptValidationError(
@@ -151,7 +154,7 @@ def load_prompt(
         )
         
         duration_ms = (time.time() - start_time) * 1000
-        logger.success(
+        logger.info(
             "Prompt loaded successfully",
             prompt_id=prompt_id,
             duration_ms=round(duration_ms, 2),
@@ -202,7 +205,7 @@ def check_input_params_in_instructions(instructions_content: str) -> bool:
         bool: True if parameters are found, False otherwise
 
     Logs:
-        - Parameter check results at DEBUG level
+        DEBUG: Parameter check results with count
     """
     variables = _extract_template_variables(instructions_content)
     logger.debug(
@@ -244,7 +247,7 @@ def _create_prompt_template(
         else:
             input_variables = extracted_variables
             if input_variables:
-                logger.info(
+                logger.debug(
                     "Using variables from instructions",
                     variables=list(input_variables),
                     request_id=request_id
