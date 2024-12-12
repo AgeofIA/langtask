@@ -112,10 +112,9 @@ Type names in schemas should use JSON Schema conventions:
 - Use `integer` instead of `int`
 - Use `number` instead of `float`
 - Use `boolean` instead of `bool`
-- Use `array` instead of `list`
 - Use `object` instead of `dict`
 
-This makes the system more flexible and less error-prone when dealing with variable names.
+Arrays are defined using the `list` attribute on any field (e.g., `list: true`, `list: 3`, `list: "2-5"`, `list: "3+"`)
 
 ## Example Prompt Structure
 
@@ -147,7 +146,7 @@ Set global defaults for all prompts:
 ```python
 lt.set_global_config({
     "provider": "anthropic",
-    "model": "claude-3-opus-20240229",
+    "model": "claude-3-5-haiku-20241022",
     "temperature": 0.1
 })
 ```
@@ -157,7 +156,7 @@ Or use provider-specific settings per prompt in `config.yaml`:
 ```yaml
 llm:
   - provider: "anthropic"
-    model: "claude-3-opus-20240229"
+    model: "claude-3-5-haiku-20241022"
     temperature: 0.7
   - provider: "openai"
     model: "gpt-4"

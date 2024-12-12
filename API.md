@@ -17,10 +17,20 @@ import langtask as lt
   - [set_global_config()](#set_global_config)
   - [get_global_config()](#get_global_config)
   - [set_logs()](#set_logs)
-- [Configuration Reference](#configuration-reference)
-  - [Global Configuration](#global-configuration)
-  - [Prompt Configuration](#prompt-configuration)
-  - [Schema Definitions](#schema-definitions)
+- [Creating Custom Prompts](#creating-custom-prompts)
+  - [Directory Structure](#directory-structure)
+  - [Prompt Instructions](#prompt-instructions-instructionsmd)
+  - [Configuration](#configuration-configyaml)
+  - [Schema Reference](#schema-reference)
+    - [Basic Schema Structure](#basic-schema-structure)
+    - [Field Types & Properties](#field-types--properties)
+    - [Field Options & Constraints](#field-options--constraints)
+    - [List Fields](#list-fields)
+    - [Optional Fields and Defaults](#optional-fields-and-defaults)
+- [Working with Responses](#working-with-responses)
+  - [Response Format](#response-format)
+  - [Field Access](#field-access)
+  - [Response Features](#response-features)
 - [Error Handling](#error-handling)
 - [Logging](#logging)
 
@@ -215,7 +225,7 @@ def set_global_config(
 # Single provider configuration
 lt.set_global_config({
     "provider": "anthropic",
-    "model": "claude-3-opus-20240229",
+    "model": "claude-3-5-haiku-20241022",
     "temperature": 0.7,
     "max_tokens": 2000
 })
@@ -224,7 +234,7 @@ lt.set_global_config({
 lt.set_global_config([
     {
         "provider": "anthropic",
-        "model": "claude-3-opus-20240229",
+        "model": "claude-3-5-haiku-20241022",
         "temperature": 0.7
     },
     {
@@ -243,7 +253,7 @@ lt.set_global_config(None)
 # Override local configs
 lt.set_global_config({
     "provider": "anthropic",
-    "model": "claude-3-opus-20240229"
+    "model": "claude-3-5-haiku-20241022"
 }, override_local_config=True)
 ```
 
@@ -342,68 +352,123 @@ except lt.ConfigurationError as e:
     print(f"Configuration error: {e.message}")
 ```
 
+## Creating Custom Prompts
 
-## Configuration Reference
+### Directory Structure
 
-### Global Configuration
+Each prompt in your prompt directory should follow this structure:
 
-Global configuration options that can be set using `set_global_config()`:
-
-```yaml
-# Single provider
-provider: "anthropic"
-model: "claude-3-opus-20240229"
-temperature: 0.7
-max_tokens: 2000
-
-# Multiple providers (as list)
-- provider: "anthropic"
-  model: "claude-3-opus-20240229"
-  temperature: 0.7
-- provider: "openai"
-  model: "gpt-4"
-  temperature: 0.5
-  max_tokens: 1000
+```
+prompts/
+└── your-prompt/
+    ├── config.yaml          # LLM and prompt configuration
+    ├── instructions.md      # Prompt template
+    ├── input_schema.yaml    # Input validation schema (optional)
+    └── output_schema.yaml   # Output validation schema (optional)
 ```
 
-### Prompt Configuration
+### Prompt Instructions (instructions.md)
+
+The `instructions.md` file supports variable interpolation using double curly braces. Variable names are case-insensitive:
+
+```markdown
+Write a {{style}} message for {{name}} about {{topic}}.
+# These are equivalent:
+Write a {{STYLE}} message for {{NAME}} about {{TOPIC}}.
+Write a {{Style}} message for {{Name}} about {{Topic}}.
+
+The message should be:
+1. Appropriate for the given style
+2. Personalized using the name
+3. Focused on the specified topic
+```
+
+### Configuration (config.yaml)
 
 Structure of `config.yaml` for individual prompts:
 
 ```yaml
 # Required fields
 id: "prompt-id"
-llm:
-  provider: "anthropic"
-  model: "claude-3-opus-20240229"
-  temperature: 0.7
 
 # Optional fields
 display_name: "Human Readable Name"
 description: "Description of what this prompt does"
 
-# Multiple providers
+# Optional LLM settings (will use global config if not specified)
+llm:
+  provider: "anthropic"
+  model: "claude-3-5-haiku-20241022"
+  temperature: 0.7
+
+# Optional multiple providers
 llm:
   - provider: "anthropic"
-    model: "claude-3-opus-20240229"
+    model: "claude-3-5-haiku-20241022"
     temperature: 0.7
   - provider: "openai"
     model: "gpt-4"
     temperature: 0.5
 ```
 
-### Schema Definitions
+### Schema Reference
 
-#### Input Schema (`input_schema.yaml`)
+#### Basic Schema Structure
 
-All field names in schemas are stored internally as lowercase. Use `required: false` to mark optional fields. The `options` field can be used with string, number, and integer types to restrict allowed values:
+Both input (`input_schema.yaml`) and output (`output_schema.yaml`) schemas follow the same rules and syntax. All field names are stored internally as lowercase. 
+
+```yaml
+field_name:
+  type: string         # Required - type of the field
+  description: "..."   # Optional - field description
+  required: false      # Optional - defaults to true
+  options: [...]       # Optional - restrict allowed values (for string, integer, and number types)
+  list: ...            # Optional - make field a list
+  default: ...         # Optional - default value if field missing
+```
+
+#### Field Types & Properties
+
+```yaml
+# String fields
+name:
+  type: string
+  description: "User's name"
+
+# Integer fields
+count:
+  type: integer
+  description: "Item count"
+
+# Number (float) fields
+score:
+  type: number
+  description: "Score value"
+
+# Boolean fields
+is_active:
+  type: boolean
+  description: "Whether the item is active"
+
+# Object fields with nested properties
+metadata:
+  type: object
+  description: "Additional metadata"
+  properties:
+    name:
+      type: string
+    count:
+      type: integer
+```
+
+#### Field Options & Constraints
 
 ```yaml
 # String options
-style:
+status:
   type: string
-  description: "Writing style"
-  options: ["formal", "casual", "technical"]
+  description: "Processing status"
+  options: ["complete", "partial", "failed"]
 
 # Integer options
 priority:
@@ -412,71 +477,87 @@ priority:
   options: [1, 2, 3]
 
 # Number (float) options
-confidence_threshold:
-  type: number
-  description: "Processing confidence level"
-  options: [0.25, 0.5, 0.75, 0.95]
-
-# Regular fields without options
-name:
-  type: string
-  description: "User's name"
-
-is_urgent:
-  type: boolean
-  description: "Whether the task is urgent"
-
-additional_context:
-  type: string
-  description: "Any additional context for the message"
-  required: false
-```
-
-#### Output Schema (`output_schema.yaml`)
-
-When an output schema is defined, responses are returned as Pydantic models with dot notation access:
-
-```yaml
-# Required fields (default)
-message:
-  type: string
-  description: "Generated message"
-  
-status:
-  type: string
-  description: "Processing status"
-  options: ["complete", "partial", "failed"]
-
-priority_level:
-  type: integer
-  description: "Output priority"
-  options: [1, 2, 3, 4, 5]
-
 confidence:
   type: number
-  description: "Confidence score"
-  options: [0.2, 0.4, 0.6, 0.8, 1.0]
-
-is_final:
-  type: boolean
-  description: "Whether this is the final version"
-
-# Optional fields
-metadata:
-  type: object
-  description: "Additional message metadata"
-  required: false
-  properties:
-    tone:
-      type: string
-      description: "Detected tone of the message"
-      options: ["formal", "casual", "playful"]
-    word_count:
-      type: integer
-      description: "Number of words in the message"
+  description: "Processing confidence"
+  options: [0.25, 0.5, 0.75, 1.0]
 ```
 
-Accessing structured responses in code:
+#### List Fields
+
+```yaml
+# Unconstrained list
+tags:
+  type: string
+  list: true
+  description: "Tag list"
+
+# Exact count
+required_scores:
+  type: number
+  list: 3
+  options: [1, 2, 3, 4, 5]
+  description: "Must provide exactly 3 scores"
+
+# Range of items
+categories:
+  type: string
+  list: 1-3
+  options: ["A", "B", "C"]
+  description: "Between 1 and 3 categories"
+
+# Minimum items
+products:
+  type: object
+  list: 3+
+  description: "At least 3 products"
+  properties:
+    name:
+      type: string
+    price:
+      type: number
+```
+
+List specifications:
+- `list: true` - Any number of items
+- `list: n` - Exactly n items
+- `list: n-m` - Between n and m items
+- `list: n+` - n or more items
+
+#### Optional Fields and Defaults
+
+```yaml
+# Optional field with default
+format:
+  type: string
+  options: ["short", "long"]
+  required: false
+  default: "short"
+  description: "Output format"
+
+# Optional field without default (will be null if not provided)
+notes:
+  type: string
+  required: false
+  description: "Additional notes"
+
+# Optional nested object
+metadata:
+  type: object
+  required: false
+  properties:
+    created_at:
+      type: string
+    author:
+      type: string
+```
+
+
+## Working with Responses
+
+When using output schemas, responses from `lt.run()` are returned as immutable Pydantic models with dot notation access. This section explains how to work with these structured responses effectively.
+
+### Response Format
 
 ```python
 response = lt.run("analyze-text", {"text": "Sample input"})
@@ -498,182 +579,83 @@ print(response)
 #         }
 #     }
 # )
+```
 
+### Field Access
+
+#### Basic Fields
+```python
 # Direct field access with dot notation
-print(response.message)
-print(response.status)          # Will be one of: "complete", "partial", "failed"
-print(response.priority_level)  # Will be one of: 1, 2, 3, 4, 5
-print(response.confidence)      # Will be one of: 0.2, 0.4, 0.6, 0.8, 1.0
-print(response.is_final)        # true or false
+print(response.message)         # Basic string field
+print(response.status)          # Field with options: "complete", "partial", "failed"
+print(response.priority_level)  # Integer field with options: 1, 2, 3, 4, 5
+print(response.confidence)      # Number field with options: 0.2, 0.4, 0.6, 0.8, 1.0
+print(response.is_final)        # Boolean field: true or false
+```
 
-# Nested field access (for required fields)
-print(response.analysis.score)           # Two levels deep
-print(response.analysis.details.tone)    # Three levels deep
-print(response.analysis.details.metrics.accuracy)  # Four levels deep
+#### List Fields
+```python
+# Access single-type lists
+for tag in response.tags:
+    print(tag)  # Each tag is a string
 
-# Optional field access
-# There are two ways to handle optional fields:
+# Access lists of objects
+for product in response.products:
+    print(f"Name: {product.name}")
+    print(f"Price: {product.price}")
+    
+# List length validation is automatic
+response.categories  # Will have between 1-3 items if specified in schema
+response.products    # Will have 3+ items if specified in schema
+```
 
+#### Nested Fields
+```python
+# Access nested objects up to 4 levels deep
+print(response.metadata.author)                    # Two levels
+print(response.analysis.details.tone)              # Three levels
+print(response.analysis.details.metrics.accuracy)  # Four levels
+```
+
+#### Optional Fields
+
+There are two ways to handle optional fields:
+
+```python
 # 1. Using try/except
 try:
     print(response.metadata.tone)  # Will raise AttributeError if metadata or tone is missing
 except AttributeError:
     print("Could not access response.metadata.tone")
 
-# 2. Using hasattr check
+# 2. Using hasattr check (recommended)
 if hasattr(response, 'metadata'):
     print(response.metadata.tone)
     print(response.metadata.word_count)
+```
 
-# Convert to dictionary if needed
+#### Converting to Dictionary
+```python
+# Convert entire response to dictionary
 data = response.model_dump()
+
+# Access converted data
+print(data['metadata']['tone'])  # Dictionary access instead of dot notation
 ```
 
-Key features of structured responses:
-- Type-safe field access
-- IDE autocompletion support
-- Immutable response objects
-- Nested objects up to 4 levels deep
-- Automatic type conversion
-- Clear AttributeError messages for missing fields
-- Human-readable string representation of response class
+### Response Features
 
-### Creating Custom Prompts
+#### Type Safety & Validation
+- Automatic type-checking and option enforcement
+- List constraints and nested object validation
+- Immutable objects prevent accidental modifications
 
-Each prompt in your prompt directory should follow this structure:
-
-```
-prompts/
-└── your-prompt/
-    ├── config.yaml          # LLM and prompt configuration
-    ├── instructions.md      # Prompt template
-    ├── input_schema.yaml    # Input validation schema
-    └── output_schema.yaml   # Output validation schema (optional)
-```
-
-### Prompt Template Guidelines
-
-The `instructions.md` file supports variable interpolation using double curly braces. Variable names are case-insensitive:
-
-```markdown
-Write a {{style}} message for {{name}} about {{topic}}.
-# These are equivalent:
-Write a {{STYLE}} message for {{NAME}} about {{TOPIC}}.
-Write a {{Style}} message for {{Name}} about {{Topic}}.
-
-The message should be:
-1. Appropriate for the given style
-2. Personalized using the name
-3. Focused on the specified topic
-```
-
-### Config File Structure
-
-The `config.yaml` file supports both single and multiple LLM configurations:
-
-```yaml
-# Basic configuration
-id: "greeting-prompt"
-display_name: "Greeting Generator"
-description: "Generates customized greetings"
-llm:
-  provider: "anthropic"
-  model: "claude-3-opus-20240229"
-  temperature: 0.7
-  max_tokens: 1000
-
-# Multiple providers with fallback
-id: "analysis-prompt"
-display_name: "Text Analyzer"
-description: "Analyzes text content"
-llm:
-  - provider: "anthropic"
-    model: "claude-3-opus-20240229"
-    temperature: 0.1
-  - provider: "openai"
-    model: "gpt-4"
-    temperature: 0.1
-```
-
-### Schema Examples
-
-Input schema (`input_schema.yaml`):
-```yaml
-name:
-  type: string
-  description: "Recipient's name"
-
-style:
-  type: string
-  description: "Message style"
-  options: ["formal", "casual", "professional"]
-
-priority:
-  type: integer
-  description: "Message priority"
-  options: [1, 2, 3]
-
-is_draft:
-  type: boolean
-  description: "Whether this is a draft message"
-
-topic:
-  type: string
-  description: "Message topic"
-  required: false
-```
-
-Output schema (`output_schema.yaml`):
-```yaml
-message:
-  type: string
-  description: "Generated message"
-
-content_type:
-  type: string
-  description: "Type of content generated"
-  options: ["greeting", "farewell", "announcement"]
-
-quality_score:
-  type: number
-  description: "Quality assessment score"
-  options: [0.25, 0.5, 0.75, 1.0]
-
-is_approved:
-  type: boolean
-  description: "Whether the content is approved"
-
-metadata:
-  type: object
-  description: "Additional message metadata"
-  required: false
-  properties:
-    tone:
-      type: string
-      description: "Detected tone of the message"
-      options: ["formal", "casual", "playful"]
-    word_count:
-      type: integer
-      description: "Number of words in the message"
-```
-
-### Variable Name Handling
-
-LangTask uses case-insensitive matching throughout the system:
-
-1. Template Variables:
-   - Variables in `instructions.md` like `{{name}}`, `{{NAME}}`, or `{{Name}}` are treated as identical
-   - All variables are converted to lowercase internally
-
-2. Input Parameters:
-   - Parameter names in `run()` calls are matched case-insensitively
-   - `{"name": "Alice"}`, `{"NAME": "Alice"}`, and `{"Name": "Alice"}` are equivalent
-
-3. Schema Definitions:
-   - Field names in schema files are stored as lowercase
-   - All comparisons and validations are done case-insensitively
-
-This approach simplifies variable handling while maintaining flexibility for users.
+#### Best Practices
+1. Use `hasattr()` for optional field checking
+2. Access nested fields with dot notation (e.g., `response.metadata.author`)
+3. Use `model_dump()` only when dictionary format is required
+4. Catch specific exceptions for optional fields
+5. Let validation errors propagate for required fields
 
 
 ## Error Handling
@@ -693,102 +675,112 @@ LangTask provides a comprehensive exception hierarchy for detailed error handlin
 | `lt.ProviderAPIError` | LLM provider API issues |
 | `lt.ProviderQuotaError` | Rate limiting and quota issues |
 | `lt.ProviderAuthenticationError` | API key and auth issues |
-| `lt.SchemaValidationError` | Schema validation failures |
-| `lt.DataValidationError` | Input data validation failures |
-| `lt.PromptValidationError` | Prompt-related validation issues |
+| `lt.SchemaValidationError` | Schema definition, structure, and response validation failures |
+| `lt.DataValidationError` | Input parameter validation failures |
+| `lt.PromptValidationError` | Prompt template validation issues |
 
-### Basic Error Handling
+### Common Error Handling
 
 ```python
 try:
     response = lt.run("analyze-text", input_params)
-except lt.ValidationError as e:
-    # All exceptions provide detailed error messages
-    print(str(e))
-    # Access additional context if needed
-    print(e.details)
+except lt.SchemaValidationError as e:
+    # Schema or response validation error
+    print(f"Schema error: {e.message}")
+    print(f"Field: {e.field}")
+    print(f"Constraints: {e.constraints}")
 except lt.ProviderError as e:
-    print(str(e))
-    # Provider errors include provider information
+    # Provider-related errors
+    print(f"Provider error: {e.message}")
     if isinstance(e, lt.ProviderQuotaError):
         print(f"Retry after {e.retry_after} seconds")
 except lt.LangTaskError as e:
-    print(str(e))
-```
-
-### Exception Details
-
-Each exception provides contextual data through their attributes:
-
-1. `FileSystemError`
-```python
-try:
-    lt.register("./nonexistent/prompts")
-except lt.FileSystemError as e:
-    # e.message -> "Directory not found: './nonexistent/prompts'. Verify path is correct and directory exists."
-    print(str(e))  # Prints the message
-    print(e.path)  # './nonexistent/prompts'
-    print(e.operation)  # 'access'
-```
-
-2. `ProviderAuthenticationError`
-```python
-try:
-    response = lt.run("my-prompt", {"text": "Hello"})
-except lt.ProviderAuthenticationError as e:
-    # e.message -> "Anthropic authentication failed. Verify key format (sk-ant-...) and account status at console.anthropic.com"
-    print(str(e))
-    print(e.provider)  # 'anthropic'
-    print(e.auth_type)  # 'api_key'
-```
-
-3. `SchemaValidationError`
-```python
-try:
-    response = lt.run("translate", {})
-except lt.SchemaValidationError as e:
-    # e.message -> "Missing required field 'text'. Update the prompt to ensure all required fields are included in the response."
-    print(str(e))
-    print(e.schema_type)  # 'input'
-    print(e.field)  # 'text'
-    print(e.constraints)  # {'error_type': 'missing', ...}
-```
-
-4. `ProviderQuotaError`
-```python
-try:
-    response = lt.run("analyze", {"text": "Sample"})
-except lt.ProviderQuotaError as e:
-    # e.message -> "Rate limit exceeded for provider 'anthropic'. Try again in 30 seconds."
-    print(str(e))
-    print(e.provider)  # 'anthropic'
-    print(e.limit_type)  # 'rate_limit'
-    print(e.retry_after)  # 30
+    # Catch-all for other library errors
+    print(f"Error: {e.message}")
 ```
 
 ### Error Attributes
 
 Each exception type includes the following attributes:
 
-1. `LangTaskError` (Base class)
+#### `LangTaskError` (Base class)
    - `message`: Detailed error description
    - `details`: Dictionary of error context
 
-2. `FileSystemError`
+#### `FileSystemError`
    - `path`: Affected file/directory path
    - `operation`: Operation that failed ('read', 'write', 'access', etc.)
    - `error_code`: Optional system error code
 
-3. `ProviderError` subclasses
+#### `ProviderError` subclasses
    - `provider`: LLM provider name ('openai', 'anthropic')
    - `ProviderAPIError`: Additional `status_code` and `response`
    - `ProviderQuotaError`: Additional `limit_type` and `retry_after`
    - `ProviderAuthenticationError`: Additional `auth_type` and `scope`
 
-4. Validation Errors
+#### Validation Errors
    - `SchemaValidationError`: `schema_type`, `field`, `constraints`
+     - For lists: `constraints` includes `min`, `max`, and `actual` count
+     - For options: `constraints` includes `allowed_values` and `received_value`
+     - For types: `constraints` includes `expected_type` and `actual_type`
    - `DataValidationError`: `data_type`, `constraint`, `value`
    - `PromptValidationError`: `prompt_path`, `validation_type`
+
+### Exception Details
+
+Each exception provides contextual data through attributes. Here are common scenarios you'll encounter and how to handle them:
+
+#### File System Operations
+```python
+try:
+    lt.register("./nonexistent/prompts")
+except lt.FileSystemError as e:
+    # "Directory not found: './nonexistent/prompts'"
+    print(e.path)        # './nonexistent/prompts'
+    print(e.operation)   # 'access'
+```
+
+#### Authentication Issues
+```python
+try:
+    response = lt.run("my-prompt", {"text": "Hello"})
+except lt.ProviderAuthenticationError as e:
+    # "Anthropic authentication failed. Verify API key..."
+    print(e.provider)    # 'anthropic'
+    print(e.auth_type)   # 'api_key'
+```
+
+#### Schema Validation - Missing Fields
+```python
+try:
+    response = lt.run("translate", {})
+except lt.SchemaValidationError as e:
+    # "Missing required field 'text'"
+    print(e.schema_type) # 'input'
+    print(e.field)       # 'text'
+    print(e.constraints) # {'error_type': 'missing', ...}
+```
+
+#### Schema Validation - List Constraints
+```python
+try:
+    response = lt.run("analyze", {"categories": ["A", "B", "C", "D"]})
+except lt.SchemaValidationError as e:
+    # "List validation failed: Field 'categories' expects 1-3 items, got 4"
+    print(e.schema_type) # 'list'
+    print(e.field)       # 'categories'
+    print(e.constraints) # {'min': 1, 'max': 3, 'actual': 4}
+```
+
+#### Rate Limiting
+```python
+try:
+    response = lt.run("analyze", {"text": "Sample"})
+except lt.ProviderQuotaError as e:
+    # "Rate limit exceeded for provider 'anthropic'. Try again in 30 seconds"
+    print(e.provider)     # 'anthropic'
+    print(e.retry_after)  # 30
+```
 
 
 ## Logging

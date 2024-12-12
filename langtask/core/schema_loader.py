@@ -5,11 +5,13 @@ Supports JSON Schema types, literals, and nested objects.
 
 Fields are required by default unless explicitly marked with required: false.
 Nested objects are supported up to 4 levels deep.
+List fields are supported with size constraints using the 'list' attribute.
 
 Public Functions:
     load_yaml_schema: Loads and converts YAML schema to Pydantic model
 """
 
+import re
 import time
 from pathlib import Path
 from typing import Any, Literal, Type
@@ -83,7 +85,6 @@ TYPE_MAPPING = {
     'integer': int,
     'number': float,
     'boolean': bool,
-    'array': list[Any],  # TODO: Add support for typed arrays in future
     'object': dict[str, Any],  # Placeholder - objects use nested models
 }
 
@@ -92,6 +93,9 @@ OPTION_COMPATIBLE_TYPES = {'string', 'integer', 'number'}
 
 # Maximum allowed nesting depth for object types
 MAX_NESTING_DEPTH = 4
+
+# Regular expression for validating list specifications
+LIST_SPEC_PATTERN = re.compile(r'^(?:(\d+)-(\d+)|(\d+)\+)$')
 
 # Cache for created schema classes
 _schema_cache: dict[str, Type[StructuredResponse]] = {}
@@ -260,6 +264,18 @@ def _validate_schema(schema: dict[str, Any], field_path: str = "", depth: int = 
                     "allowed_types": list(TYPE_MAPPING.keys())
                 }
             )
+            
+        # Validate list specification if present
+        if 'list' in field_def:
+            try:
+                _parse_list_spec(field_def['list'])
+            except SchemaValidationError as e:
+                raise SchemaValidationError(
+                    message=f"Invalid list specification for field '{current_path}': {e.message}",
+                    schema_type="list",
+                    field=current_path,
+                    constraints=e.constraints
+                )
         
         # Handle nested object validation
         if field_type == 'object':
@@ -360,6 +376,15 @@ def _convert_to_pydantic_field(
             "title": field_def.get('title')
         }
         
+        # Handle list constraints if present
+        if 'list' in field_def:
+            min_items, max_items = _parse_list_spec(field_def['list'])
+            if min_items is not None:
+                field_kwargs["min_length"] = min_items
+            if max_items is not None:
+                field_kwargs["max_length"] = max_items
+        
+        # Handle optional fields and defaults
         if not field_def.get('required', True):
             field_kwargs["default"] = field_def.get('default', None)
         elif 'default' in field_def:
@@ -380,12 +405,13 @@ def _convert_to_pydantic_field(
 def _get_field_type(field_name: str, field_def: dict[str, Any], parent_path: str = "") -> Any:
     """Determine Python type for schema field, including literals and nested objects."""
     current_path = f"{parent_path}.{field_name}" if parent_path else field_name
+    base_type = None
     
     # Handle fields with options using Literal types
     if 'options' in field_def:
         try:
             option_values = tuple(field_def['options'])  # Convert to tuple for Literal
-            return Literal[option_values]  # type: ignore
+            base_type = Literal[option_values]  # type: ignore
         except Exception as e:
             raise SchemaValidationError(
                 message=f"Invalid options for '{current_path}'. Values must be hashable.",
@@ -410,21 +436,66 @@ def _get_field_type(field_name: str, field_def: dict[str, Any], parent_path: str
         
         # Create nested model with descriptive name and proper inheritance
         model_name = f"{current_path.title().replace('.', '_')}Model"
-        return create_model(
+        base_type = create_model(
             model_name,
             __base__=BaseModel,
             **nested_fields,
             __module__=StructuredResponse.__module__
         )
     
-    # Handle standard types
-    if schema_type in TYPE_MAPPING:
-        return TYPE_MAPPING[schema_type]
+    # Handle standard types if no options defined
+    if base_type is None and schema_type in TYPE_MAPPING:
+        base_type = TYPE_MAPPING[schema_type]
     
-    # Fallback for unknown types    
-    logger.warning(
-        "Unknown schema type",
-        field=current_path,
-        type=schema_type
+    # Wrap in list if specified
+    if 'list' in field_def:
+        return list[base_type] if base_type is not None else list
+        
+    return base_type or Any  # Fallback to Any for unknown types
+
+
+def _parse_list_spec(value: Any) -> tuple[int | None, int | None]:
+    """Parse list specification into (min, max) counts."""
+    if value is True:
+        return None, None
+    
+    if isinstance(value, int):
+        if value < 1:
+            raise SchemaValidationError(
+                message=f"List count must be positive, got {value}",
+                schema_type="list",
+                constraints={"min_value": 1}
+            )
+        return value, value
+        
+    if isinstance(value, str):
+        match = LIST_SPEC_PATTERN.match(value)
+        if not match:
+            raise SchemaValidationError(
+                message=f"Invalid list specification '{value}'. Use format: '1-3' for range or '3+' for minimum",
+                schema_type="list",
+                constraints={"pattern": "n-m or n+"}
+            )
+            
+        # Get all groups and determine which format matched
+        range_min, range_max, min_only = match.groups()
+        
+        if range_min and range_max:  # n-m format
+            min_val = int(range_min)
+            max_val = int(range_max)
+            if min_val > max_val:
+                raise SchemaValidationError(
+                    message=f"Invalid range: minimum ({min_val}) greater than maximum ({max_val})",
+                    schema_type="list",
+                    constraints={"min": min_val, "max": max_val}
+                )
+            return min_val, max_val
+            
+        if min_only:  # n+ format
+            return int(min_only), None
+            
+    raise SchemaValidationError(
+        message=f"Invalid list specification type: {type(value)}. Expected bool, int, or string",
+        schema_type="list",
+        constraints={"allowed_types": ["bool", "int", "str"]}
     )
-    return Any

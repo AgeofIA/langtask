@@ -41,7 +41,7 @@ class LLMConfig(BaseModel):
     Example:
         >>> config = LLMConfig(
         ...     provider='anthropic',
-        ...     model='claude-3-opus-20240229',
+        ...     model='claude-3-5-haiku-20241022',
         ...     temperature=0.7,
         ...     max_tokens=1000
         ... )

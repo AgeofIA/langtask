@@ -217,7 +217,7 @@ def set_global_config(
     Example:
         >>> set_global_config({
         ...     "provider": "anthropic",
-        ...     "model": "claude-3-opus-20240229",
+        ...     "model": "claude-3-5-haiku-20241022",
         ...     "temperature": 0.7
         ... })
     """
