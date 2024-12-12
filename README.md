@@ -6,7 +6,7 @@
 
 LangTask is a lightweight Python library for rapidly setting up and managing LLM prompts with structured input/output validation. It provides a clean, type-safe interface for working with language models while enforcing schema validation and proper error handling.
 
-> ⚠️ **Note**: This is a pre-alpha, work-in-progress project used internally for client work. It is not yet stable for production use and the API may change significantly.
+> ⚠️ **Note**: This is a work-in-progress personal project. It is not yet stable for production use and the API will change significantly.
 
 ## Features
 
