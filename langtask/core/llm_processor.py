@@ -228,7 +228,8 @@ def _process_llm_call(
                 "LLM response received",
                 request_id=request_id,
                 duration_ms=_get_duration_ms(start_time),
-                response_type=type(response).__name__
+                response_type=type(response).__name__,
+                response=response
             )
             
             return response

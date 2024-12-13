@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed schema validation where `required: false` was not working correctly, causing all fields to be treated as required regardless of setting
 - Optional status (`required: false`) now properly cascades to child fields in nested objects
 - Removed redundant output schema format instructions from prompt templates since LangChain's `with_structured_output()` handles this natively
+- Added full response output to debug logs
 
 
 ## [0.1.1] - 2024-12-12
