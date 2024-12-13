@@ -159,7 +159,7 @@ def load_yaml_schema(file_path: str | Path, request_id: str | None = None) -> Ty
             request_id=request_id
         )
         
-        yaml_schema = read_yaml_file(path)
+        yaml_schema = read_yaml_file(path, request_id=request_id)
         if not yaml_schema:
             logger.debug(
                 "No schema defined",
