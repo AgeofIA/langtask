@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional status (`required: false`) now properly cascades to child fields in nested objects
 - Removed redundant output schema format instructions from prompt templates since LangChain's `with_structured_output()` handles this natively
 - Added full response output to debug logs
+- Improved output validation to better handle pre-validated responses, JSON strings, and invalid response types with clearer error messages
 
 
 ## [0.1.1] - 2024-12-12

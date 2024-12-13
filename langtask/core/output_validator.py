@@ -57,7 +57,42 @@ def handle_structured_output(
         >>> print(response.sentiment)  # Access fields with dot notation
     """
     try:
-        return validate_llm_output(response_data, output_schema, request_id)
+        # If response is already a valid StructuredResponse, return it
+        if isinstance(response_data, output_schema):
+            logger.debug(
+                "Response already validated",
+                request_id=request_id,
+                schema=output_schema.__name__
+            )
+            return response_data
+            
+        # If response is a dict, validate it
+        if isinstance(response_data, dict):
+            return validate_llm_output(response_data, output_schema, request_id)
+            
+        # Handle potential JSON string responses
+        if isinstance(response_data, str) and response_data.strip().startswith('{'):
+            raise SchemaValidationError(
+                message=(
+                    "The LLM returned a JSON string instead of structured data. "
+                    f"Received: '{response_data[:100]}...'. "
+                    "Update the prompt to return direct structured output."
+                ),
+                schema_type="output",
+                field=output_schema.__name__,
+                constraints={"input_preview": response_data[:100]}
+            )
+            
+        # Handle other invalid response types
+        raise SchemaValidationError(
+            message=(
+                f"Invalid response type: {type(response_data).__name__}. "
+                "Expected structured data matching the output schema."
+            ),
+            schema_type="output",
+            field=output_schema.__name__,
+            constraints={"response_type": type(response_data).__name__}
+        )
         
     except ValidationError as e:
         logger.error(
@@ -68,45 +103,13 @@ def handle_structured_output(
         )
         raise SchemaValidationError(
             message=(
-                "LLM response format validation failed. The response was returned as a string "
-                "instead of structured data. Update the prompt to ensure the LLM returns properly "
-                "structured output that matches your schema."
+                "LLM response format validation failed. The response structure "
+                "does not match the expected schema. Update the prompt to ensure "
+                "the LLM returns properly structured output."
             ),
             schema_type="output",
             field=output_schema.__name__,
             constraints={"validation_errors": e.errors()}
-        )
-        
-    except Exception as e:
-        logger.error(
-            "Structured output validation failed",
-            request_id=request_id,
-            error=str(e),
-            error_type=type(e).__name__,
-            schema=output_schema.__name__
-        )
-        
-        # Handle potential JSON string responses
-        if isinstance(response_data, str) and response_data.strip().startswith('{'):
-            raise SchemaValidationError(
-                message=(
-                    "The LLM returned a JSON string instead of structured data. "
-                    f"Received: '{response_data[:100]}...' if len(response_data) > 100 else response_data'. "
-                    "Update the prompt to return direct structured output."
-                ),
-                schema_type="output",
-                field=output_schema.__name__,
-                constraints={"input_preview": response_data[:100] if len(response_data) > 100 else response_data}
-            )
-            
-        raise SchemaValidationError(
-            message=(
-                f"Failed to validate LLM response against schema. "
-                f"Review output_schema.yaml and prompt instructions."
-            ),
-            schema_type="output",
-            field=output_schema.__name__,
-            constraints={"error": str(e)}
         )
 
 
