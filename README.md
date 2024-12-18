@@ -6,7 +6,10 @@
 
 LangTask is a lightweight Python library for rapidly setting up and managing LLM prompts with structured input/output validation. It provides a clean, type-safe interface for working with language models while enforcing schema validation and proper error handling.
 
-> ⚠️ **Note**: This is a work-in-progress personal project. It is not yet stable for production use and the API will change significantly.
+> ⚠️ **Development Status Note**: This is a work-in-progress personal project. The API will change significantly.
+
+> 📝 **Documentation Note**: This project intentionally includes extensive documentation and inline examples to facilitate better understanding by LLMs. The API.md file can be used as a reference document in LLM chats to enable quick comprehension of the framework's usage patterns.
+
 
 ## Features
 
@@ -22,6 +25,7 @@ LangTask is a lightweight Python library for rapidly setting up and managing LLM
 ```bash
 pip install langtask
 ```
+
 
 ## Quick Start
 
@@ -99,6 +103,7 @@ print(response.confidence)     # 0.95
 print(response.word_count)     # 2
 ```
 
+
 ## Variable Naming
 
 LangTask handles variable names case-insensitively throughout the system:
@@ -115,6 +120,7 @@ Type names in schemas should use JSON Schema conventions:
 - Use `object` instead of `dict`
 
 Arrays are defined using the `list` attribute on any field (e.g., `list: true`, `list: 3`, `list: "2-5"`, `list: "3+"`)
+
 
 ## Example Prompt Structure
 
@@ -138,6 +144,7 @@ Each prompt requires:
 - `instructions.md`: The actual prompt template with variable placeholders
 - `input_schema.yaml`: Schema defining expected input parameters
 - `output_schema.yaml`: Schema for structured output validation (required for dot notation access)
+
 
 ## Configuration
 
@@ -163,6 +170,7 @@ llm:
     temperature: 0.5
     max_tokens: 1000
 ```
+
 
 ## Structured Responses
 
@@ -213,6 +221,7 @@ Key benefits:
 - Immutable response objects
 - Automatic type conversion
 - Clear error messages for invalid access
+
 
 ## Logging
 
@@ -276,6 +285,7 @@ If the specified log directory cannot be created or accessed:
 2024-03-22 10:15:31 | req-123 | SUCCESS | llm_processor  | Request processed | duration_ms=523.45
 ```
 
+
 ## Environment Setup
 
 LangTask supports multiple ways to configure your API keys:
@@ -306,13 +316,6 @@ load_dotenv()
 
 Remember to add `.env` to your `.gitignore` to protect your API keys.
 
-## Development Status
-
-This project is in pre-alpha stage and is actively being developed. Current limitations:
-- API may change without notice
-- Limited provider support (OpenAI and Anthropic only)
-- Basic error recovery
-- Limited documentation
 
 ## Requirements
 

@@ -8,11 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.2] - Unreleased
 
+### Changed
+- Removed redundant output schema format instructions from prompt templates since LangChain's `with_structured_output()` handles this natively
+
+### Added
+- Included full response output in debug logs
+
 ### Fixed
 - Fixed schema validation where `required: false` was not working correctly, causing all fields to be treated as required regardless of setting
 - Optional status (`required: false`) now properly cascades to child fields in nested objects
-- Removed redundant output schema format instructions from prompt templates since LangChain's `with_structured_output()` handles this natively
-- Added full response output to debug logs
+
+### Maintenence
 - Improved output validation to better handle pre-validated responses, JSON strings, and invalid response types with clearer error messages
 
 
@@ -21,14 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Switched response format from dictionaries to immutable Pydantic models
 - Changed `optional: true` to `required: false` in schema definitions for better alignment with industry standards
-- Improved handling of optional input schema files to properly support prompts without input validation
 - Replaced `enum` with `options` in schema definitions for more intuitive field restrictions
-- Switched from Python Enums to Pydantic Literals for better type safety and simpler value handling
-- Limited options to string, integer, and number types only
+- Limited options to string, integer, and number types
 - Removed 'array' type in favor of new `list` attribute for more intuitive array definitions
-- Improved API documentation structure to include "Creating Custom Prompts" and "Working with Responses" sections
 - Adjusted logging levels across request lifecycle for cleaner console output
-- Improved separation of concerns between LLM processing and output validation errors by moving provider interaction code from output_validator.py to llm_processor.py
 
 ### Added
 - Dot notation access for response fields (e.g., `response.field` instead of `response["field"]`)
@@ -61,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated prompt registration to reinitialize prompts when directories are re-registered, ensuring updates to existing prompts are captured
 - Fixed request ID propagation through file reading operations to maintain consistent request tracing in logs
 - Fixed incorrect OutputParserException import path and restored proper LangChain parsing error handling
+
+### Maintenence
+- Switched from Python Enums to Pydantic Literals for better type safety and simpler value handling
+- Improved separation of concerns between LLM processing and output validation by moving provider interaction code from output_validator.py to llm_processor.py
+- Improved API documentation structure to include "Creating Custom Prompts" and "Working with Responses" sections
 
 
 ## [0.1.0] - 2024-11-25
